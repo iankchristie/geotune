@@ -294,47 +294,60 @@ function MapContainer({
     };
   }, [labelType, isAnnotating, onNegativeChipPlace, onStartAnnotation]);
 
-  // Handle click on chips for deletion
+  // Handle click on chips for deletion (only in SELECT mode)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     const handleChipClick = (e) => {
-      if (isAnnotating) return;
+      if (isAnnotating || labelType !== LABEL_TYPES.SELECT) return;
       e.preventDefault();
 
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
         const chipId = feature.properties.id;
-
-        if (window.confirm('Delete this chip?')) {
-          onChipDelete(chipId);
-        }
+        onChipDelete(chipId);
       }
     };
 
     map.on('click', POSITIVE_CHIPS_LAYER, handleChipClick);
     map.on('click', NEGATIVE_CHIPS_LAYER, handleChipClick);
 
-    // Change cursor on hover over chips
+    // Change cursor on hover over chips (only in SELECT mode)
     map.on('mouseenter', POSITIVE_CHIPS_LAYER, () => {
-      if (!isAnnotating) map.getCanvas().style.cursor = 'pointer';
+      if (!isAnnotating && labelType === LABEL_TYPES.SELECT) {
+        map.getCanvas().style.cursor = 'pointer';
+      }
     });
     map.on('mouseleave', POSITIVE_CHIPS_LAYER, () => {
-      map.getCanvas().style.cursor = isAnnotating ? '' : 'crosshair';
+      if (isAnnotating) {
+        map.getCanvas().style.cursor = '';
+      } else if (labelType === LABEL_TYPES.SELECT) {
+        map.getCanvas().style.cursor = 'default';
+      } else {
+        map.getCanvas().style.cursor = 'crosshair';
+      }
     });
     map.on('mouseenter', NEGATIVE_CHIPS_LAYER, () => {
-      if (!isAnnotating) map.getCanvas().style.cursor = 'pointer';
+      if (!isAnnotating && labelType === LABEL_TYPES.SELECT) {
+        map.getCanvas().style.cursor = 'pointer';
+      }
     });
     map.on('mouseleave', NEGATIVE_CHIPS_LAYER, () => {
-      map.getCanvas().style.cursor = isAnnotating ? '' : 'crosshair';
+      if (isAnnotating) {
+        map.getCanvas().style.cursor = '';
+      } else if (labelType === LABEL_TYPES.SELECT) {
+        map.getCanvas().style.cursor = 'default';
+      } else {
+        map.getCanvas().style.cursor = 'crosshair';
+      }
     });
 
     return () => {
       map.off('click', POSITIVE_CHIPS_LAYER, handleChipClick);
       map.off('click', NEGATIVE_CHIPS_LAYER, handleChipClick);
     };
-  }, [isAnnotating, onChipDelete]);
+  }, [isAnnotating, labelType, onChipDelete]);
 
   // Update draw mode based on annotation state
   useEffect(() => {
@@ -347,9 +360,9 @@ function MapContainer({
       map.getCanvas().style.cursor = 'crosshair';
     } else {
       draw.changeMode('simple_select');
-      map.getCanvas().style.cursor = 'crosshair';
+      map.getCanvas().style.cursor = labelType === LABEL_TYPES.SELECT ? 'default' : 'crosshair';
     }
-  }, [isAnnotating]);
+  }, [isAnnotating, labelType]);
 
   // Update preview chip color based on label type
   useEffect(() => {
@@ -360,14 +373,14 @@ function MapContainer({
     map.setPaintProperty(PREVIEW_CHIP_LAYER, 'line-color', color);
   }, [labelType]);
 
-  // Show preview chip on hover (snapped to grid)
+  // Show preview chip on hover (snapped to grid) - only in POSITIVE/NEGATIVE modes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     const handleMouseMove = (e) => {
-      if (isAnnotating) {
-        // Hide preview while annotating
+      // Hide preview while annotating or in SELECT mode
+      if (isAnnotating || labelType === LABEL_TYPES.SELECT) {
         const previewSource = map.getSource(PREVIEW_CHIP_SOURCE);
         if (previewSource) {
           previewSource.setData({ type: 'FeatureCollection', features: [] });
@@ -408,7 +421,7 @@ function MapContainer({
       map.off('mousemove', handleMouseMove);
       map.off('mouseleave', handleMouseLeave);
     };
-  }, [isAnnotating]);
+  }, [isAnnotating, labelType]);
 
   // Update active chip display
   useEffect(() => {

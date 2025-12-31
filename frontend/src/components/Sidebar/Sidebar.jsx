@@ -47,8 +47,14 @@ function Sidebar({
         </div>
       ) : (
         <div className="sidebar-section">
-          <h2 className="section-title">Label Type</h2>
+          <h2 className="section-title">Mode</h2>
           <div className="mode-buttons">
+            <button
+              className={`mode-button mode-select ${labelType === LABEL_TYPES.SELECT ? 'active' : ''}`}
+              onClick={() => onLabelTypeChange(LABEL_TYPES.SELECT)}
+            >
+              Select
+            </button>
             <button
               className={`mode-button mode-positive ${labelType === LABEL_TYPES.POSITIVE ? 'active' : ''}`}
               onClick={() => onLabelTypeChange(LABEL_TYPES.POSITIVE)}
@@ -89,31 +95,24 @@ function Sidebar({
 
       <div className="sidebar-section">
         <h2 className="section-title">Actions</h2>
-        <button
-          className="action-button danger"
-          onClick={onClearAll}
-          disabled={totalChips === 0 || isAnnotating}
-        >
-          Clear All Labels
-        </button>
+        <div className="action-buttons">
+          <button
+            className="action-button save"
+            onClick={() => {}}
+            disabled={totalChips === 0 || isAnnotating}
+          >
+            Save Labels
+          </button>
+          <button
+            className="action-button danger"
+            onClick={onClearAll}
+            disabled={totalChips === 0 || isAnnotating}
+          >
+            Clear All Labels
+          </button>
+        </div>
       </div>
 
-      <div className="sidebar-section sidebar-help">
-        <h2 className="section-title">Instructions</h2>
-        <ul className="help-list">
-          <li>
-            <strong>Positive:</strong> Click on a chip location to select it, then draw polygons
-            around features of interest. Click &ldquo;Finish Annotation&rdquo; when done.
-          </li>
-          <li>
-            <strong>Negative:</strong> Click on the map to place a negative sample chip at that
-            location.
-          </li>
-          <li>
-            <strong>Delete:</strong> Click on any existing chip to delete it.
-          </li>
-        </ul>
-      </div>
     </div>
   );
 }

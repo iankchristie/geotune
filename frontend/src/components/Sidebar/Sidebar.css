@@ -158,6 +158,21 @@
   color: #9ca3af;
 }
 
+.action-button.save {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.action-button.save:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .annotation-section {
   background-color: #1e3a5f;
   border-color: #3b82f6;
@@ -185,25 +200,3 @@
   gap: 8px;
 }
 
-.sidebar-help {
-  flex: 1;
-}
-
-.help-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.help-list li {
-  font-size: 0.813rem;
-  line-height: 1.5;
-  color: #d1d5db;
-}
-
-.help-list li strong {
-  color: #f3f4f6;
-}

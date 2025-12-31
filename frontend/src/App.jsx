@@ -1,11 +1,13 @@
 import { useState, useCallback } from 'react';
 import MapContainer from './components/Map/MapContainer';
 import Sidebar from './components/Sidebar/Sidebar';
+import ConfirmModal from './components/ConfirmModal/ConfirmModal';
 import useLabels from './hooks/useLabels';
 import './App.css';
 
 // Label types
 export const LABEL_TYPES = {
+  SELECT: 'select',
   POSITIVE: 'positive',
   NEGATIVE: 'negative',
 };
@@ -15,6 +17,8 @@ function App() {
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [activeChipCenter, setActiveChipCenter] = useState(null);
   const [pendingPolygons, setPendingPolygons] = useState([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [chipToDelete, setChipToDelete] = useState(null);
 
   const {
     polygons,
@@ -64,6 +68,27 @@ function App() {
     setPendingPolygons([]);
   }, []);
 
+  // Request chip deletion (opens modal)
+  const handleChipDeleteRequest = useCallback((chipId) => {
+    setChipToDelete(chipId);
+    setDeleteModalOpen(true);
+  }, []);
+
+  // Confirm chip deletion
+  const handleConfirmDelete = useCallback(() => {
+    if (chipToDelete) {
+      deleteChip(chipToDelete);
+    }
+    setDeleteModalOpen(false);
+    setChipToDelete(null);
+  }, [chipToDelete, deleteChip]);
+
+  // Cancel chip deletion
+  const handleCancelDelete = useCallback(() => {
+    setDeleteModalOpen(false);
+    setChipToDelete(null);
+  }, []);
+
   const positiveChipCount = chips.filter((c) => c.type === 'positive').length;
   const negativeChipCount = chips.filter((c) => c.type === 'negative').length;
 
@@ -91,7 +116,14 @@ function App() {
         onStartAnnotation={handleStartAnnotation}
         onAddPendingPolygon={handleAddPendingPolygon}
         onNegativeChipPlace={addNegativeChip}
-        onChipDelete={deleteChip}
+        onChipDelete={handleChipDeleteRequest}
+      />
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Chip"
+        message="Are you sure you want to delete this chip and its associated polygons?"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
       />
     </div>
   );
