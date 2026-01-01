@@ -81,48 +81,162 @@ Create a React frontend with Mapbox satellite imagery where users can:
 
 ---
 
-## PHASE 2: Backend API - Data Persistence (NEXT)
-**Status: NOT STARTED**
+## PHASE 2: Backend API - Data Persistence
+**Status: COMPLETE**
 
 ### Objective
-Flask backend with SQLite to persist projects and labels.
+Flask backend with SQLite to persist projects and labels. Auto-load labels on app startup.
 
-### Key Components
-- Flask app with blueprints
-- SQLite database with spatial data (GeoJSON as text)
-- Project CRUD endpoints
-- Label/Chip CRUD endpoints
+### Implementation
 
-### Database Schema Preview
+#### Backend Structure
+```
+backend/
+├── app/
+│   ├── __init__.py          # Flask app factory
+│   ├── config.py            # Configuration
+│   ├── database.py          # SQLite connection and schema
+│   └── routes/
+│       ├── __init__.py      # Blueprint registration
+│       ├── projects.py      # Project CRUD
+│       └── labels.py        # Labels API
+├── requirements.txt         # Flask, flask-cors, pytest
+├── run.py                   # Dev server entry point
+└── venv/                    # Virtual environment
+```
+
+#### Database Schema
 ```sql
 CREATE TABLE projects (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    bbox_geojson TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE labels (
-    id INTEGER PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    geometry_geojson TEXT NOT NULL,
-    label_type TEXT NOT NULL  -- 'positive' or 'negative'
+    description TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
 CREATE TABLE chips (
-    id INTEGER PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    label_id INTEGER REFERENCES labels(id),
-    bbox_geojson TEXT NOT NULL,
+    id TEXT PRIMARY KEY,
+    project_id INTEGER NOT NULL,
+    geometry_geojson TEXT NOT NULL,
     center_lng REAL NOT NULL,
     center_lat REAL NOT NULL,
-    chip_type TEXT NOT NULL
+    chip_type TEXT NOT NULL CHECK (chip_type IN ('positive', 'negative')),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+CREATE TABLE polygons (
+    id TEXT PRIMARY KEY,
+    chip_id TEXT NOT NULL,
+    geometry_geojson TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (chip_id) REFERENCES chips(id) ON DELETE CASCADE
 );
 ```
 
+#### API Endpoints
+- `GET /api/projects` - List all projects
+- `POST /api/projects` - Create project
+- `GET /api/projects/<id>` - Get project
+- `DELETE /api/projects/<id>` - Delete project
+- `GET /api/projects/<id>/labels` - Get chips and polygons
+- `POST /api/projects/<id>/labels` - Save chips and polygons
+- `DELETE /api/projects/<id>/labels` - Clear labels
+- `GET /api/health` - Health check
+
+#### Frontend Changes
+- Added `frontend/src/services/api.js` - API client
+- Updated `useLabels.js` - Added setInitialState function
+- Updated `App.jsx` - Project state, auto-load, save handler
+- Updated `Sidebar.jsx` - Save button with feedback
+- Updated `vite.config.js` - API proxy
+
+### Automated Verification (API Tests)
+- [x] Backend starts on port 5001
+- [x] Health endpoint returns healthy status
+- [x] Can create/list/delete projects via API
+- [x] Can save/load/clear labels via API
+
+### Manual Verification Checklist
+To verify the full integration, run both servers and test in the browser:
+
+**Setup:**
+```bash
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [x] App loads without errors (check browser console)
+- [x] Default project is auto-created on first load
+- [x] Can place negative chips (red) on the map
+- [x] Can draw positive chips with polygons (green)
+- [x] Save button shows "Saving..." during save
+- [x] Save button shows "Labels saved successfully!" after save
+- [x] Refresh page - labels persist and reload correctly
+- [x] Clear All removes all labels from map
+- [x] Clear All persists after refresh (labels stay cleared)
+
 ---
 
-## PHASE 3: GEE Integration - Imagery Export (FUTURE)
+## PHASE 2.5: Home Page - Project Management
+**Status: COMPLETE**
+
+### Objective
+Add a home page as the landing page that displays all projects and allows users to create new ones before navigating to the map labeling interface.
+
+### Implementation
+
+#### New Components
+```
+frontend/src/components/
+├── Home/
+│   ├── HomePage.jsx       # Main container with project list
+│   ├── HomePage.css       # Styling
+│   ├── ProjectCard.jsx    # Individual project display card
+│   ├── ProjectCard.css
+│   ├── NewProjectModal.jsx # Modal for creating new project
+│   └── NewProjectModal.css
+└── LabelingPage/
+    ├── LabelingPage.jsx   # Extracted labeling interface
+    └── LabelingPage.css
+```
+
+#### Changes Made
+- Added `react-router-dom` for client-side routing
+- Created routes: `/` (home) and `/project/:projectId` (labeling)
+- Refactored `App.jsx` to be routing container
+- Added back navigation button to Sidebar
+
+### Manual Verification Checklist
+
+**Setup:**
+```bash
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [x] Home page loads as landing page (shows project list or empty state)
+- [x] Can create new project via "New Project" button
+- [x] Project creation navigates to labeling interface
+- [x] Projects list displays correctly with name and date
+- [x] Can click project card to open labeling interface
+- [x] Can delete project with confirmation modal
+- [x] Back button in labeling page navigates to home
+- [x] URL updates correctly when navigating (`/`, `/project/1`)
+- [x] Direct URL access works (e.g., navigating directly to `/project/1`)
+
+---
+
+## PHASE 3: GEE Integration - Imagery Export (NEXT)
 **Status: NOT STARTED**
 
 ### Objective

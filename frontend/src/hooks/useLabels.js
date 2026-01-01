@@ -13,6 +13,39 @@ function generateChipId() {
 }
 
 /**
+ * Extract the numeric ID from a string ID like 'chip-5' or 'polygon-10'
+ * @param {string} id - ID string
+ * @returns {number} Numeric portion of the ID
+ */
+function extractIdNumber(id) {
+  const match = id.match(/\d+$/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+/**
+ * Sync ID counters to continue from the highest loaded ID
+ * @param {Array} chips - Array of chip objects
+ * @param {Array} polygons - Array of polygon objects
+ */
+function syncIdCounters(chips, polygons) {
+  let maxChipId = 0;
+  let maxPolygonId = 0;
+
+  chips.forEach((chip) => {
+    const num = extractIdNumber(chip.id);
+    if (num > maxChipId) maxChipId = num;
+  });
+
+  polygons.forEach((polygon) => {
+    const num = extractIdNumber(polygon.id);
+    if (num > maxPolygonId) maxPolygonId = num;
+  });
+
+  chipIdCounter = maxChipId;
+  polygonIdCounter = maxPolygonId;
+}
+
+/**
  * Hook for managing label state (polygons and chips)
  */
 export default function useLabels() {
@@ -97,6 +130,18 @@ export default function useLabels() {
     setChips([]);
   }, []);
 
+  /**
+   * Set initial state from loaded data (e.g., from server)
+   * Also syncs ID counters to continue from highest loaded ID
+   * @param {Array} loadedChips - Array of chip objects
+   * @param {Array} loadedPolygons - Array of polygon objects
+   */
+  const setInitialState = useCallback((loadedChips, loadedPolygons) => {
+    syncIdCounters(loadedChips, loadedPolygons);
+    setChips(loadedChips);
+    setPolygons(loadedPolygons);
+  }, []);
+
   return {
     polygons,
     chips,
@@ -105,5 +150,6 @@ export default function useLabels() {
     deleteChip,
     deletePolygon,
     clearAll,
+    setInitialState,
   };
 }

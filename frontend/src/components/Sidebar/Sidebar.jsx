@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { LABEL_TYPES } from '../../App';
+import { LABEL_TYPES } from '../LabelingPage/LabelingPage';
 import './Sidebar.css';
 
 function Sidebar({
@@ -13,14 +13,24 @@ function Sidebar({
   positiveChipCount,
   negativeChipCount,
   onClearAll,
+  onSave,
+  isSaving,
+  saveStatus,
+  projectName,
+  onBackToProjects,
 }) {
   const totalChips = positiveChipCount + negativeChipCount;
 
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <h1 className="sidebar-title">GeoLabel</h1>
-        <p className="sidebar-subtitle">Satellite Imagery Labeling</p>
+        <button className="back-to-projects" onClick={onBackToProjects} title="Back to projects">
+          &larr;
+        </button>
+        <div className="sidebar-header-text">
+          <h1 className="sidebar-title">GeoLabel</h1>
+          <p className="sidebar-subtitle">{projectName || 'Satellite Imagery Labeling'}</p>
+        </div>
       </div>
 
       {isAnnotating ? (
@@ -98,19 +108,25 @@ function Sidebar({
         <div className="action-buttons">
           <button
             className="action-button save"
-            onClick={() => {}}
-            disabled={totalChips === 0 || isAnnotating}
+            onClick={onSave}
+            disabled={totalChips === 0 || isAnnotating || isSaving}
           >
-            Save Labels
+            {isSaving ? 'Saving...' : 'Save Labels'}
           </button>
           <button
             className="action-button danger"
             onClick={onClearAll}
-            disabled={totalChips === 0 || isAnnotating}
+            disabled={totalChips === 0 || isAnnotating || isSaving}
           >
             Clear All Labels
           </button>
         </div>
+        {saveStatus === 'success' && (
+          <div className="save-status success">Labels saved successfully!</div>
+        )}
+        {saveStatus === 'error' && (
+          <div className="save-status error">Failed to save labels. Please try again.</div>
+        )}
       </div>
 
     </div>
@@ -128,6 +144,11 @@ Sidebar.propTypes = {
   positiveChipCount: PropTypes.number.isRequired,
   negativeChipCount: PropTypes.number.isRequired,
   onClearAll: PropTypes.func.isRequired,
+  onSave: PropTypes.func.isRequired,
+  isSaving: PropTypes.bool.isRequired,
+  saveStatus: PropTypes.oneOf(['success', 'error', null]),
+  projectName: PropTypes.string,
+  onBackToProjects: PropTypes.func.isRequired,
 };
 
 export default Sidebar;
