@@ -1,8 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MapContainer from '../Map/MapContainer';
 import Sidebar from '../Sidebar/Sidebar';
 import ConfirmModal from '../ConfirmModal/ConfirmModal';
+import MapBlade from '../MapBlade/MapBlade';
+import ChipDetails from '../MapBlade/ChipDetails';
+import ExportDetails from '../MapBlade/ExportDetails';
 import useLabels from '../../hooks/useLabels';
 import { getProject, loadLabels, saveLabels, clearLabels } from '../../services/api';
 import './LabelingPage.css';
@@ -24,6 +27,9 @@ function LabelingPage() {
   const [pendingPolygons, setPendingPolygons] = useState([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [chipToDelete, setChipToDelete] = useState(null);
+  const [selectedChipId, setSelectedChipId] = useState(null);
+  const [showExport, setShowExport] = useState(false);
+  const [cameFromExport, setCameFromExport] = useState(false);
 
   const {
     polygons,
@@ -76,6 +82,9 @@ function LabelingPage() {
         setActiveChipCenter(null);
         setPendingPolygons([]);
       }
+      // Clear selection and close blade when changing modes
+      setSelectedChipId(null);
+      setShowExport(false);
       setLabelType(newType);
     },
     [isAnnotating]
@@ -106,23 +115,65 @@ function LabelingPage() {
     setPendingPolygons([]);
   }, []);
 
-  const handleChipDeleteRequest = useCallback((chipId) => {
-    setChipToDelete(chipId);
-    setDeleteModalOpen(true);
-  }, []);
-
-  const handleConfirmDelete = useCallback(() => {
-    if (chipToDelete) {
-      deleteChip(chipToDelete);
-    }
-    setDeleteModalOpen(false);
-    setChipToDelete(null);
-  }, [chipToDelete, deleteChip]);
-
   const handleCancelDelete = useCallback(() => {
     setDeleteModalOpen(false);
     setChipToDelete(null);
   }, []);
+
+  // Chip selection handlers for MapBlade
+  const handleChipSelect = useCallback((chipId) => {
+    // Track if we're navigating from export view
+    setCameFromExport(showExport);
+    setSelectedChipId(chipId);
+    setShowExport(false);
+  }, [showExport]);
+
+  const handleCloseBlade = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(false);
+    setCameFromExport(false);
+  }, []);
+
+  const handleBackToExport = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(true);
+    setCameFromExport(false);
+  }, []);
+
+  const handleOpenExport = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(true);
+  }, []);
+
+  const handleDeleteSelectedChip = useCallback(() => {
+    if (selectedChipId) {
+      setChipToDelete(selectedChipId);
+      setDeleteModalOpen(true);
+    }
+  }, [selectedChipId]);
+
+  // When chip is deleted, clear selection if it was the selected chip
+  const handleConfirmDeleteWithClear = useCallback(() => {
+    if (chipToDelete) {
+      deleteChip(chipToDelete);
+      if (chipToDelete === selectedChipId) {
+        setSelectedChipId(null);
+      }
+    }
+    setDeleteModalOpen(false);
+    setChipToDelete(null);
+  }, [chipToDelete, deleteChip, selectedChipId]);
+
+  // Compute selected chip and its polygons
+  const selectedChip = useMemo(() => {
+    if (!selectedChipId) return null;
+    return chips.find((c) => c.id === selectedChipId) || null;
+  }, [selectedChipId, chips]);
+
+  const selectedChipPolygonCount = useMemo(() => {
+    if (!selectedChipId) return 0;
+    return polygons.filter((p) => p.chipId === selectedChipId).length;
+  }, [selectedChipId, polygons]);
 
   const handleSave = useCallback(async () => {
     if (!project) return;
@@ -199,6 +250,7 @@ function LabelingPage() {
           saveStatus={saveStatus}
           projectName={project?.name}
           onBackToProjects={handleBackToProjects}
+          onExport={handleOpenExport}
         />
       )}
       <MapContainer
@@ -211,13 +263,37 @@ function LabelingPage() {
         onStartAnnotation={handleStartAnnotation}
         onAddPendingPolygon={handleAddPendingPolygon}
         onNegativeChipPlace={addNegativeChip}
-        onChipDelete={handleChipDeleteRequest}
+        onChipSelect={handleChipSelect}
+        selectedChipId={selectedChipId}
       />
+      {showExport && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          title="Exported Imagery"
+        >
+          <ExportDetails projectId={parseInt(projectId, 10)} onChipSelect={handleChipSelect} />
+        </MapBlade>
+      )}
+      {!showExport && selectedChip && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          onBack={cameFromExport ? handleBackToExport : undefined}
+          title="Chip Details"
+        >
+          <ChipDetails
+            chip={selectedChip}
+            polygonCount={selectedChipPolygonCount}
+            onDelete={handleDeleteSelectedChip}
+          />
+        </MapBlade>
+      )}
       <ConfirmModal
         isOpen={deleteModalOpen}
         title="Delete Chip"
         message="Are you sure you want to delete this chip and its associated polygons?"
-        onConfirm={handleConfirmDelete}
+        onConfirm={handleConfirmDeleteWithClear}
         onCancel={handleCancelDelete}
       />
     </div>

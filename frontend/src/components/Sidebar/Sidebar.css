@@ -196,6 +196,15 @@
   background-color: #1d4ed8;
 }
 
+.action-button.export {
+  background-color: #059669;
+  color: #ffffff;
+}
+
+.action-button.export:hover:not(:disabled) {
+  background-color: #047857;
+}
+
 .action-buttons {
   display: flex;
   flex-direction: column;

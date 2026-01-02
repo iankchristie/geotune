@@ -71,3 +71,45 @@ export async function clearLabels(projectId) {
   }
   return response.json();
 }
+
+// ============ Imagery API ============
+
+export async function getImageryStatus(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/imagery`);
+  if (!response.ok) {
+    throw new Error('Failed to load imagery status');
+  }
+  return response.json();
+}
+
+// ============ Chips API ============
+
+export function getChipThumbnailUrl(chipId) {
+  return `${API_BASE_URL}/chips/${chipId}/thumbnail`;
+}
+
+export async function checkChipThumbnailExists(chipId) {
+  const response = await fetch(`${API_BASE_URL}/chips/${chipId}/thumbnail`, {
+    method: 'HEAD',
+  });
+  return response.ok;
+}
+
+export async function getChipMetadata(chipId) {
+  const response = await fetch(`${API_BASE_URL}/chips/${chipId}/metadata`);
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
+export function getChipMaskUrl(chipId) {
+  return `${API_BASE_URL}/chips/${chipId}/mask`;
+}
+
+export async function checkChipMaskExists(chipId) {
+  const response = await fetch(`${API_BASE_URL}/chips/${chipId}/mask`, {
+    method: 'HEAD',
+  });
+  return response.ok;
+}

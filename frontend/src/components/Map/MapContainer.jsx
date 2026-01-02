@@ -27,6 +27,8 @@ const PENDING_POLYGONS_LAYER = 'pending-polygons-layer';
 const PENDING_POLYGONS_OUTLINE = 'pending-polygons-outline';
 const SAVED_POLYGONS_LAYER = 'saved-polygons-layer';
 const SAVED_POLYGONS_OUTLINE = 'saved-polygons-outline';
+const SELECTED_CHIP_LAYER = 'selected-chip-layer';
+const SELECTED_CHIP_OUTLINE = 'selected-chip-outline';
 
 // Source IDs
 const POSITIVE_CHIPS_SOURCE = 'positive-chips-source';
@@ -35,6 +37,7 @@ const PREVIEW_CHIP_SOURCE = 'preview-chip-source';
 const ACTIVE_CHIP_SOURCE = 'active-chip-source';
 const PENDING_POLYGONS_SOURCE = 'pending-polygons-source';
 const SAVED_POLYGONS_SOURCE = 'saved-polygons-source';
+const SELECTED_CHIP_SOURCE = 'selected-chip-source';
 
 function MapContainer({
   labelType,
@@ -46,7 +49,8 @@ function MapContainer({
   onStartAnnotation,
   onAddPendingPolygon,
   onNegativeChipPlace,
-  onChipDelete,
+  onChipSelect,
+  selectedChipId,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -104,6 +108,11 @@ function MapContainer({
       });
 
       map.addSource(SAVED_POLYGONS_SOURCE, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.addSource(SELECTED_CHIP_SOURCE, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       });
@@ -224,6 +233,27 @@ function MapContainer({
           'line-width': 2,
         },
       });
+
+      // Selected chip highlight (drawn on top of everything)
+      map.addLayer({
+        id: SELECTED_CHIP_LAYER,
+        type: 'fill',
+        source: SELECTED_CHIP_SOURCE,
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.25,
+        },
+      });
+
+      map.addLayer({
+        id: SELECTED_CHIP_OUTLINE,
+        type: 'line',
+        source: SELECTED_CHIP_SOURCE,
+        paint: {
+          'line-color': '#60a5fa',
+          'line-width': 4,
+        },
+      });
     });
 
     mapRef.current = map;
@@ -294,7 +324,7 @@ function MapContainer({
     };
   }, [labelType, isAnnotating, onNegativeChipPlace, onStartAnnotation]);
 
-  // Handle click on chips for deletion (only in SELECT mode)
+  // Handle click on chips for selection (only in SELECT mode)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -302,16 +332,33 @@ function MapContainer({
     const handleChipClick = (e) => {
       if (isAnnotating || labelType !== LABEL_TYPES.SELECT) return;
       e.preventDefault();
+      e.originalEvent.stopPropagation();
 
       if (e.features && e.features.length > 0) {
         const feature = e.features[0];
         const chipId = feature.properties.id;
-        onChipDelete(chipId);
+        onChipSelect(chipId);
+      }
+    };
+
+    // Handle click on empty map area to deselect
+    const handleMapClick = (e) => {
+      if (isAnnotating || labelType !== LABEL_TYPES.SELECT) return;
+
+      // Check if click was on a chip layer - if so, the chip handler will handle it
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [POSITIVE_CHIPS_LAYER, NEGATIVE_CHIPS_LAYER],
+      });
+
+      if (features.length === 0) {
+        // Clicked on empty area - deselect
+        onChipSelect(null);
       }
     };
 
     map.on('click', POSITIVE_CHIPS_LAYER, handleChipClick);
     map.on('click', NEGATIVE_CHIPS_LAYER, handleChipClick);
+    map.on('click', handleMapClick);
 
     // Change cursor on hover over chips (only in SELECT mode)
     map.on('mouseenter', POSITIVE_CHIPS_LAYER, () => {
@@ -346,8 +393,9 @@ function MapContainer({
     return () => {
       map.off('click', POSITIVE_CHIPS_LAYER, handleChipClick);
       map.off('click', NEGATIVE_CHIPS_LAYER, handleChipClick);
+      map.off('click', handleMapClick);
     };
-  }, [isAnnotating, labelType, onChipDelete]);
+  }, [isAnnotating, labelType, onChipSelect]);
 
   // Update draw mode based on annotation state
   useEffect(() => {
@@ -488,6 +536,35 @@ function MapContainer({
     }
   }, [polygons, mapLoaded]);
 
+  // Update selected chip highlight
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    const selectedSource = map.getSource(SELECTED_CHIP_SOURCE);
+    if (selectedSource) {
+      if (selectedChipId) {
+        const selectedChip = chips.find((c) => c.id === selectedChipId);
+        if (selectedChip) {
+          selectedSource.setData({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                properties: { id: selectedChip.id },
+                geometry: selectedChip.geometry,
+              },
+            ],
+          });
+        } else {
+          selectedSource.setData({ type: 'FeatureCollection', features: [] });
+        }
+      } else {
+        selectedSource.setData({ type: 'FeatureCollection', features: [] });
+      }
+    }
+  }, [selectedChipId, chips, mapLoaded]);
+
   return <div ref={mapContainerRef} className="map-container" />;
 }
 
@@ -501,7 +578,8 @@ MapContainer.propTypes = {
   onStartAnnotation: PropTypes.func.isRequired,
   onAddPendingPolygon: PropTypes.func.isRequired,
   onNegativeChipPlace: PropTypes.func.isRequired,
-  onChipDelete: PropTypes.func.isRequired,
+  onChipSelect: PropTypes.func.isRequired,
+  selectedChipId: PropTypes.string,
 };
 
 export default MapContainer;

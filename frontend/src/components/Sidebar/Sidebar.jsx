@@ -18,6 +18,7 @@ function Sidebar({
   saveStatus,
   projectName,
   onBackToProjects,
+  onExport,
 }) {
   const totalChips = positiveChipCount + negativeChipCount;
 
@@ -28,8 +29,7 @@ function Sidebar({
           &larr;
         </button>
         <div className="sidebar-header-text">
-          <h1 className="sidebar-title">GeoLabel</h1>
-          <p className="sidebar-subtitle">{projectName || 'Satellite Imagery Labeling'}</p>
+          <h1 className="sidebar-title">{projectName || 'Untitled Project'}</h1>
         </div>
       </div>
 
@@ -114,6 +114,13 @@ function Sidebar({
             {isSaving ? 'Saving...' : 'Save Labels'}
           </button>
           <button
+            className="action-button export"
+            onClick={onExport}
+            disabled={totalChips === 0 || isAnnotating || isSaving}
+          >
+            Exported Imagery
+          </button>
+          <button
             className="action-button danger"
             onClick={onClearAll}
             disabled={totalChips === 0 || isAnnotating || isSaving}
@@ -149,6 +156,7 @@ Sidebar.propTypes = {
   saveStatus: PropTypes.oneOf(['success', 'error', null]),
   projectName: PropTypes.string,
   onBackToProjects: PropTypes.func.isRequired,
+  onExport: PropTypes.func.isRequired,
 };
 
 export default Sidebar;

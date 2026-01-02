@@ -236,17 +236,130 @@ cd frontend && npm start
 
 ---
 
-## PHASE 3: GEE Integration - Imagery Export (NEXT)
-**Status: NOT STARTED**
+## PHASE 2.6: MapBlade - Selection Details Panel
+**Status: COMPLETE**
 
 ### Objective
-Export Sentinel-2 imagery chips from Google Earth Engine.
+Add a reusable right-side blade component that shows details when selecting items on the map. Initially shows chip details in SELECT mode.
 
-### Key Components
-- GEE service for Sentinel-2 L2A access
-- Cloud masking with QA60 bitmask
-- Median composite over date range
-- GeoTIFF export for chips
+### Implementation
+
+#### New Components
+```
+frontend/src/components/MapBlade/
+├── MapBlade.jsx      # Generic blade container (reusable)
+├── MapBlade.css      # Blade styling with slide animation
+├── ChipDetails.jsx   # Chip-specific content
+└── ChipDetails.css   # Chip details styling
+```
+
+#### Changes Made
+- MapBlade: Generic container with `isOpen`, `onClose`, `title`, `children` props
+- ChipDetails: Shows chip type, coordinates, date, polygon count, delete button
+- SELECT mode now selects chips instead of immediately deleting
+- Selected chip has blue highlight on map
+- Clicking empty map area closes blade
+
+### Manual Verification Checklist
+
+**Setup:**
+```bash
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [x] In SELECT mode, clicking chip opens MapBlade on right
+- [x] MapBlade shows chip type (positive/negative) with color
+- [x] MapBlade shows center coordinates
+- [x] MapBlade shows created date
+- [x] MapBlade shows polygon count for positive chips
+- [x] Delete button in blade removes chip and closes blade
+- [x] Close button (X) closes blade
+- [x] Clicking another chip switches blade content
+- [x] Clicking empty map area closes blade
+- [x] Selected chip has blue highlight on map
+- [x] Switching modes closes blade
+
+---
+
+## PHASE 3: GEE Integration - Imagery Export (CURRENT)
+**Status: AWAITING VERIFICATION**
+
+### Objective
+Export Sentinel-2 L2A imagery from Google Earth Engine for labeled chips. Uses service account authentication with direct local download.
+
+### Implementation
+
+#### Backend Files Created
+```
+backend/app/
+├── services/
+│   ├── __init__.py
+│   └── gee_service.py       # GEE interaction (auth, composite, download)
+├── workers/
+│   ├── __init__.py
+│   └── export_worker.py     # Background job processor
+└── routes/
+    └── exports.py           # Export API endpoints
+```
+
+#### Database Schema
+- `export_jobs` table - tracks export requests (project_id, status, date range, bands, progress)
+- `chip_exports` table - tracks individual chip export status (job_id, chip_id, local_path)
+
+#### API Endpoints
+- `GET /api/projects/{id}/exports` - List export jobs
+- `POST /api/projects/{id}/exports` - Create export job
+- `GET /api/projects/{id}/exports/{jobId}` - Get detailed job status
+- `DELETE /api/projects/{id}/exports/{jobId}` - Cancel export job
+
+#### Frontend Components
+- `ExportDetails.jsx` - Export status and history in MapBlade
+- `ExportForm.jsx` - Date range and cloud cover selection
+- "Export Imagery" button in Sidebar
+
+#### Key Features
+- Uses `getDownloadURL()` for direct local download (no GCS required)
+- Cloud masking with QA60 bitmask (bits 10, 11)
+- Median composite over user-specified date range
+- All 10 Sentinel-2 bands: B2, B3, B4, B5, B6, B7, B8, B8A, B11, B12
+- Background worker thread for async processing
+- Real-time progress updates in UI
+
+### Configuration Required
+```bash
+# Environment variables
+GEE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json
+EXPORTS_DIR=/path/to/exports  # defaults to backend/data/exports
+```
+
+### Manual Verification Checklist
+
+**Setup:**
+```bash
+# Install new dependencies
+cd backend && pip install -r requirements.txt
+
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [ ] Backend starts with GEE credentials configured
+- [ ] Can create export job via "Export Imagery" button
+- [ ] Export job appears in MapBlade export view
+- [ ] GeoTIFFs download directly to `backend/data/exports/{project_id}/`
+- [ ] Progress updates in real-time in UI
+- [ ] Can cancel in-progress export
+- [ ] Export history shows completed/failed jobs
+- [ ] Exported files persist for ML training use
 
 ---
 

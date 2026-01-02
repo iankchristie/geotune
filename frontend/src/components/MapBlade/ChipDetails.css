@@ -1,0 +1,238 @@
+.chip-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.chip-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chip-type-badge-container {
+  display: flex;
+}
+
+.chip-type-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.chip-type-badge.positive {
+  background-color: rgba(22, 163, 74, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(22, 163, 74, 0.4);
+}
+
+.chip-type-badge.negative {
+  background-color: rgba(220, 38, 38, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+.chip-details-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.chip-details-value {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+  margin: 0;
+}
+
+.chip-details-value.chip-details-muted {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.chip-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background-color: #374151;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.chip-coord-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chip-coord-label {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+.chip-coord-value {
+  font-size: 0.8125rem;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  color: #e5e7eb;
+}
+
+.chip-details-actions {
+  margin-top: 12px;
+  padding-top: 20px;
+  border-top: 1px solid #374151;
+}
+
+.chip-delete-button {
+  width: 100%;
+  padding: 10px 16px;
+  background-color: #991b1b;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.chip-delete-button:hover {
+  background-color: #b91c1c;
+}
+
+/* Thumbnail Preview Styles */
+.chip-thumbnail-container {
+  width: 100%;
+  aspect-ratio: 1;
+  background-color: #1f2937;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #374151;
+}
+
+.chip-thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chip-thumbnail-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.chip-thumbnail-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #374151;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: thumbnail-spin 1s linear infinite;
+}
+
+@keyframes thumbnail-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chip-thumbnail-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #f87171;
+  font-size: 0.8125rem;
+  text-align: center;
+  padding: 16px;
+}
+
+.chip-thumbnail-error-icon {
+  width: 28px;
+  height: 28px;
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.chip-thumbnail-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 16px;
+}
+
+.chip-thumbnail-placeholder-icon {
+  font-size: 2rem;
+  opacity: 0.6;
+}
+
+.chip-thumbnail-placeholder-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  max-width: 180px;
+}
+
+/* Mask Overlay Styles */
+.chip-thumbnail-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.chip-thumbnail-wrapper .chip-thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chip-mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  mix-blend-mode: screen;
+  filter: sepia(1) saturate(5) hue-rotate(70deg);
+  pointer-events: none;
+}
+
+.chip-mask-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip-mask-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #22c55e;
+  cursor: pointer;
+}

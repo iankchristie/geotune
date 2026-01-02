@@ -59,9 +59,48 @@ def init_db():
             FOREIGN KEY (chip_id) REFERENCES chips(id) ON DELETE CASCADE
         );
 
+        -- Export jobs table (tracks export requests)
+        CREATE TABLE IF NOT EXISTS export_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+            start_date TEXT NOT NULL,
+            end_date TEXT NOT NULL,
+            bands TEXT NOT NULL,
+            cloud_cover_max INTEGER DEFAULT 20,
+            total_chips INTEGER NOT NULL,
+            completed_chips INTEGER DEFAULT 0,
+            failed_chips INTEGER DEFAULT 0,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        -- Chip exports table (tracks individual chip export status)
+        CREATE TABLE IF NOT EXISTS chip_exports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            chip_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+            local_path TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (job_id) REFERENCES export_jobs(id) ON DELETE CASCADE,
+            FOREIGN KEY (chip_id) REFERENCES chips(id) ON DELETE CASCADE
+        );
+
         -- Indexes for efficient lookups
         CREATE INDEX IF NOT EXISTS idx_chips_project_id ON chips(project_id);
         CREATE INDEX IF NOT EXISTS idx_polygons_chip_id ON polygons(chip_id);
+        CREATE INDEX IF NOT EXISTS idx_export_jobs_project_id ON export_jobs(project_id);
+        CREATE INDEX IF NOT EXISTS idx_export_jobs_status ON export_jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_chip_exports_job_id ON chip_exports(job_id);
+        CREATE INDEX IF NOT EXISTS idx_chip_exports_chip_id ON chip_exports(chip_id);
     ''')
 
     db.commit()

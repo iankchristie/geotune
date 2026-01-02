@@ -2,6 +2,8 @@ import json
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from app.database import get_db
+from app.workers.export_worker import queue_chip_downloads
+from app.services.mask_service import regenerate_all_masks_for_project
 
 labels_bp = Blueprint('labels', __name__)
 
@@ -107,10 +109,17 @@ def save_labels(project_id):
 
     db.commit()
 
+    # Regenerate masks for positive chips that have exported imagery
+    masks_generated = regenerate_all_masks_for_project(project_id)
+
+    # Queue downloads for chips that don't have imagery yet
+    queue_chip_downloads(project_id)
+
     return jsonify({
         'message': 'Labels saved successfully',
         'chipCount': len(chips),
-        'polygonCount': len(polygons)
+        'polygonCount': len(polygons),
+        'masksGenerated': masks_generated
     })
 
 

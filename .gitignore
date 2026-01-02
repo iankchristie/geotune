@@ -58,3 +58,8 @@ ENV/
 # Misc
 *.local
 .cache/
+
+# Credentials and secrets
+backend/credentials/*.json
+!backend/credentials/*.example
+backend/data/
