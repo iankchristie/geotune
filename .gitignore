@@ -63,3 +63,8 @@ ENV/
 backend/credentials/*.json
 !backend/credentials/*.example
 backend/data/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
