@@ -20,3 +20,6 @@ EXPORTS_DIR = os.environ.get('EXPORTS_DIR', os.path.join(BASE_DIR, 'data', 'expo
 
 # Mask configuration (for ML training target masks)
 MASKS_DIR = os.environ.get('MASKS_DIR', os.path.join(BASE_DIR, 'data', 'masks'))
+
+# Models configuration (for ML training checkpoints and logs)
+MODELS_DIR = os.environ.get('MODELS_DIR', os.path.join(BASE_DIR, 'data', 'models'))

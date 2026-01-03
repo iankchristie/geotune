@@ -286,8 +286,8 @@ cd frontend && npm start
 
 ---
 
-## PHASE 3: GEE Integration - Imagery Export (CURRENT)
-**Status: AWAITING VERIFICATION**
+## PHASE 3: GEE Integration - Imagery Export
+**Status: COMPLETE**
 
 ### Objective
 Export Sentinel-2 L2A imagery from Google Earth Engine for labeled chips. Uses service account authentication with direct local download.
@@ -299,42 +299,54 @@ Export Sentinel-2 L2A imagery from Google Earth Engine for labeled chips. Uses s
 backend/app/
 ├── services/
 │   ├── __init__.py
-│   └── gee_service.py       # GEE interaction (auth, composite, download)
+│   ├── gee_service.py       # GEE interaction (auth, composite, download)
+│   ├── imagery_service.py   # Thumbnail and metadata from GeoTIFFs
+│   └── mask_service.py      # Binary mask generation for positive chips
 ├── workers/
 │   ├── __init__.py
-│   └── export_worker.py     # Background job processor
-└── routes/
-    └── exports.py           # Export API endpoints
+│   └── export_worker.py     # Background download worker
+├── routes/
+│   ├── imagery.py           # Imagery status endpoints
+│   └── chips.py             # Chip thumbnail, metadata, and mask endpoints
+└── config.py                # EXPORTS_DIR, MASKS_DIR configuration
 ```
 
-#### Database Schema
-- `export_jobs` table - tracks export requests (project_id, status, date range, bands, progress)
-- `chip_exports` table - tracks individual chip export status (job_id, chip_id, local_path)
-
 #### API Endpoints
-- `GET /api/projects/{id}/exports` - List export jobs
-- `POST /api/projects/{id}/exports` - Create export job
-- `GET /api/projects/{id}/exports/{jobId}` - Get detailed job status
-- `DELETE /api/projects/{id}/exports/{jobId}` - Cancel export job
+- `GET /api/projects/{id}/imagery` - Get download status for all chips
+- `GET /api/chips/{id}/thumbnail` - Get RGB PNG thumbnail
+- `GET /api/chips/{id}/metadata` - Get GeoTIFF metadata (bounds, dimensions, resolution)
+- `GET /api/chips/{id}/mask` - Get binary mask PNG for positive chips
+- `HEAD /api/chips/{id}/mask` - Check if mask exists
 
 #### Frontend Components
-- `ExportDetails.jsx` - Export status and history in MapBlade
-- `ExportForm.jsx` - Date range and cloud cover selection
-- "Export Imagery" button in Sidebar
+- `ExportDetails.jsx` - Shows exported imagery gallery with download status
+- `ChipDetails.jsx` - Enhanced with metadata from GeoTIFF and mask overlay toggle
+- "Exported Imagery" button in Sidebar opens gallery view
+- Back navigation from chip details to gallery
 
 #### Key Features
-- Uses `getDownloadURL()` for direct local download (no GCS required)
-- Cloud masking with QA60 bitmask (bits 10, 11)
-- Median composite over user-specified date range
+- Background worker thread downloads chips automatically on save
+- Fixed parameters: 2025-01-01 to 2025-12-31, 30% cloud cover max
 - All 10 Sentinel-2 bands: B2, B3, B4, B5, B6, B7, B8, B8A, B11, B12
-- Background worker thread for async processing
-- Real-time progress updates in UI
+- Cloud masking with QA60 bitmask
+- Median composite for cloud-free imagery
+- RGB thumbnails generated on-the-fly from GeoTIFFs
+- Binary masks auto-generated for positive chips (GeoTIFF format for ML training)
+- Mask overlay toggle in chip details view
+
+### Output Structure
+```
+backend/data/
+├── exports/{project_id}/{chip_id}.tif    # 10-band Sentinel-2 imagery
+└── masks/{project_id}/{chip_id}.tif      # Single-band binary mask (0/1)
+```
 
 ### Configuration Required
 ```bash
 # Environment variables
 GEE_SERVICE_ACCOUNT_PATH=/path/to/service-account.json
 EXPORTS_DIR=/path/to/exports  # defaults to backend/data/exports
+MASKS_DIR=/path/to/masks      # defaults to backend/data/masks
 ```
 
 ### Manual Verification Checklist
@@ -352,28 +364,247 @@ cd frontend && npm start
 ```
 
 **Test Steps:**
-- [ ] Backend starts with GEE credentials configured
-- [ ] Can create export job via "Export Imagery" button
-- [ ] Export job appears in MapBlade export view
-- [ ] GeoTIFFs download directly to `backend/data/exports/{project_id}/`
-- [ ] Progress updates in real-time in UI
-- [ ] Can cancel in-progress export
-- [ ] Export history shows completed/failed jobs
-- [ ] Exported files persist for ML training use
+- [x] Backend starts with GEE credentials configured
+- [x] Saving labels triggers background download of chip imagery
+- [x] GeoTIFFs download to `backend/data/exports/{project_id}/`
+- [x] "Exported Imagery" button shows gallery of downloaded chips
+- [x] Clicking chip in gallery opens chip details with back navigation
+- [x] Chip details shows metadata from GeoTIFF (bounds, dimensions, resolution)
+- [x] Positive chips have binary masks generated automatically
+- [x] Mask overlay toggle shows mask on RGB preview
+- [x] Exported files persist for ML training use
 
 ---
 
-## PHASE 4: Training Pipeline (FUTURE)
+## PHASE 4: Training Pipeline
 **Status: NOT STARTED**
 
 ### Objective
-Train UNet binary segmentation model on labeled chips.
+Train a semantic segmentation model on labeled chips using TorchGeo's SemanticSegmentationTask with pretrained weights. Support background training with progress tracking.
 
-### Key Components
-- UNet architecture (PyTorch)
-- Dataset loader for chips and masks
-- Background training job
-- Progress tracking
+### Implementation
+
+#### Backend Files to Create
+```
+backend/app/
+├── ml/
+│   ├── __init__.py
+│   ├── dataset.py           # Custom RasterDataset for GeoLabel chips
+│   ├── datamodule.py        # PyTorch Lightning DataModule
+│   └── trainer.py           # Training orchestration with fixed config
+├── workers/
+│   └── training_worker.py   # Background training job processor
+└── routes/
+    └── training.py          # Training API endpoints
+```
+
+#### Dependencies (add to requirements.txt)
+```
+torch>=2.0.0
+torchvision>=0.15.0
+torchgeo>=0.8.0
+lightning>=2.0.0
+segmentation-models-pytorch>=0.3.0
+albumentations>=1.3.0
+tensorboard>=2.14.0
+```
+
+#### Custom Dataset Class
+```python
+# backend/app/ml/dataset.py
+from torchgeo.datasets import RasterDataset
+
+class GeoLabelDataset(RasterDataset):
+    """Custom dataset for GeoLabel exported chips and masks."""
+
+    filename_glob = "*.tif"
+    is_image = True
+
+    def __init__(self, paths, crs=None, res=None, transforms=None):
+        super().__init__(paths, crs=crs, res=res, transforms=transforms)
+
+class GeoLabelMaskDataset(RasterDataset):
+    """Dataset for binary segmentation masks."""
+
+    filename_glob = "*.tif"
+    is_image = False
+
+    def __init__(self, paths, crs=None, res=None, transforms=None):
+        super().__init__(paths, crs=crs, res=res, transforms=transforms)
+```
+
+#### DataModule Configuration
+```python
+# backend/app/ml/datamodule.py
+from lightning import LightningDataModule
+from torchgeo.datasets import stack_samples
+from torchgeo.samplers import RandomGeoSampler, GridGeoSampler
+from torch.utils.data import DataLoader
+
+class GeoLabelDataModule(LightningDataModule):
+    def __init__(
+        self,
+        project_id: int,
+        batch_size: int = 8,
+        patch_size: int = 256,
+        num_workers: int = 4,
+        val_split: float = 0.2,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.batch_size = batch_size
+        self.patch_size = patch_size
+        self.num_workers = num_workers
+        self.val_split = val_split
+
+    def setup(self, stage=None):
+        # Load imagery and mask datasets
+        # Split into train/val based on chip IDs
+        # Create intersection datasets
+        pass
+
+    def train_dataloader(self):
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            sampler=self.train_sampler,
+            num_workers=self.num_workers,
+            collate_fn=stack_samples,
+        )
+```
+
+#### SemanticSegmentationTask Configuration (TorchGeo v0.8.0)
+```python
+# backend/app/ml/task.py
+from torchgeo.trainers import SemanticSegmentationTask
+
+def create_segmentation_task() -> SemanticSegmentationTask:
+    """Create SemanticSegmentationTask with fixed configuration.
+
+    Fixed settings:
+    - UNet with ResNet50 backbone
+    - Pretrained ImageNet weights
+    - Binary segmentation task
+    - BCE loss
+    """
+    return SemanticSegmentationTask(
+        model="unet",
+        backbone="resnet50",
+        weights=True,
+        in_channels=10,       # Sentinel-2 bands
+        task="binary",
+        lr=1e-4,
+        loss="bce",
+    )
+```
+
+#### Database Schema Addition
+```sql
+CREATE TABLE training_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+    config_json TEXT NOT NULL,      -- Training hyperparameters
+    started_at TEXT,
+    completed_at TEXT,
+    current_epoch INTEGER DEFAULT 0,
+    total_epochs INTEGER NOT NULL,
+    train_loss REAL,
+    val_loss REAL,
+    val_iou REAL,                   -- Intersection over Union
+    checkpoint_path TEXT,           -- Path to best model checkpoint
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+#### API Endpoints
+- `GET /api/projects/{id}/training` - List training jobs for project
+- `POST /api/projects/{id}/training` - Start new training job
+- `GET /api/projects/{id}/training/{jobId}` - Get job status and metrics
+- `DELETE /api/projects/{id}/training/{jobId}` - Cancel training job
+
+#### TensorBoard Logging
+TensorBoard logs are saved for backend debugging and analysis:
+```bash
+# View training logs
+tensorboard --logdir backend/data/models/{project_id}/{job_id}/tensorboard/
+```
+
+#### Frontend Components
+```
+frontend/src/components/MapBlade/
+└── TrainingDetails.jsx       # Training status and progress display
+```
+
+#### UI Flow
+1. "Train" button in Sidebar (next to Export) starts training with fixed configuration
+2. TrainingDetails blade opens showing:
+   - Training status (pending/running/completed/failed)
+   - Current epoch / total epochs progress bar
+   - Train loss and validation loss
+   - Validation IoU metric
+   - Training history (past runs with metrics)
+
+#### Fixed Training Configuration
+All hyperparameters are fixed (no UI configuration):
+- Model: UNet with ResNet50 backbone
+- Pretrained: ImageNet weights
+- Task: Binary segmentation
+- Loss: BCE (binary cross-entropy)
+- Learning rate: 1e-4
+- Max epochs: 50
+- Batch size: 8
+- Early stopping: patience=10 on val_loss
+
+#### Key Features
+- TorchGeo v0.8.0 SemanticSegmentationTask with pretrained ImageNet weights
+- Binary segmentation mode (single target class) optimized for GeoLabel use case
+- Fixed UNet + ResNet50 architecture (no configuration needed)
+- Background training with PyTorch Lightning Trainer
+- Real-time progress updates in blade (epoch, loss, IoU metrics)
+- Automatic train/val split from labeled chips
+- TensorBoard logging for detailed backend debugging
+- Model checkpointing (saves best model by val_iou)
+- Early stopping to prevent overfitting
+
+#### Output Structure
+```
+backend/data/
+├── exports/{project_id}/{chip_id}.tif    # Input imagery
+├── masks/{project_id}/{chip_id}.tif      # Target masks
+└── models/{project_id}/
+    ├── {job_id}/
+    │   ├── checkpoints/
+    │   │   └── best.ckpt                 # Best model checkpoint
+    │   ├── tensorboard/                  # Training logs
+    │   └── config.json                   # Training configuration
+    └── latest.ckpt                       # Symlink to most recent best model
+```
+
+### Manual Verification Checklist
+
+**Setup:**
+```bash
+# Install new dependencies
+cd backend && pip install -r requirements.txt
+
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [ ] "Train" button in sidebar starts training job
+- [ ] TrainingDetails blade opens showing status
+- [ ] Progress updates display in real-time (epoch, loss, metrics)
+- [ ] Can cancel in-progress training
+- [ ] Training completes and saves checkpoint
+- [ ] Training history shows past runs with metrics
+- [ ] Completed model ready for inference (Phase 5)
 
 ---
 

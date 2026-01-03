@@ -6,6 +6,7 @@ import ConfirmModal from '../ConfirmModal/ConfirmModal';
 import MapBlade from '../MapBlade/MapBlade';
 import ChipDetails from '../MapBlade/ChipDetails';
 import ExportDetails from '../MapBlade/ExportDetails';
+import TrainingDetails from '../MapBlade/TrainingDetails';
 import useLabels from '../../hooks/useLabels';
 import { getProject, loadLabels, saveLabels, clearLabels } from '../../services/api';
 import './LabelingPage.css';
@@ -29,6 +30,7 @@ function LabelingPage() {
   const [chipToDelete, setChipToDelete] = useState(null);
   const [selectedChipId, setSelectedChipId] = useState(null);
   const [showExport, setShowExport] = useState(false);
+  const [showTraining, setShowTraining] = useState(false);
   const [cameFromExport, setCameFromExport] = useState(false);
 
   const {
@@ -131,18 +133,27 @@ function LabelingPage() {
   const handleCloseBlade = useCallback(() => {
     setSelectedChipId(null);
     setShowExport(false);
+    setShowTraining(false);
     setCameFromExport(false);
   }, []);
 
   const handleBackToExport = useCallback(() => {
     setSelectedChipId(null);
     setShowExport(true);
+    setShowTraining(false);
     setCameFromExport(false);
   }, []);
 
   const handleOpenExport = useCallback(() => {
     setSelectedChipId(null);
     setShowExport(true);
+    setShowTraining(false);
+  }, []);
+
+  const handleOpenTraining = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(false);
+    setShowTraining(true);
   }, []);
 
   const handleDeleteSelectedChip = useCallback(() => {
@@ -251,6 +262,7 @@ function LabelingPage() {
           projectName={project?.name}
           onBackToProjects={handleBackToProjects}
           onExport={handleOpenExport}
+          onTrain={handleOpenTraining}
         />
       )}
       <MapContainer
@@ -275,7 +287,16 @@ function LabelingPage() {
           <ExportDetails projectId={parseInt(projectId, 10)} onChipSelect={handleChipSelect} />
         </MapBlade>
       )}
-      {!showExport && selectedChip && (
+      {showTraining && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          title="Model Training"
+        >
+          <TrainingDetails projectId={parseInt(projectId, 10)} />
+        </MapBlade>
+      )}
+      {!showExport && !showTraining && selectedChip && (
         <MapBlade
           isOpen={true}
           onClose={handleCloseBlade}

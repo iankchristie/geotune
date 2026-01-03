@@ -19,6 +19,7 @@ function Sidebar({
   projectName,
   onBackToProjects,
   onExport,
+  onTrain,
 }) {
   const totalChips = positiveChipCount + negativeChipCount;
 
@@ -121,6 +122,13 @@ function Sidebar({
             Exported Imagery
           </button>
           <button
+            className="action-button train"
+            onClick={onTrain}
+            disabled={positiveChipCount === 0 || isAnnotating || isSaving}
+          >
+            Train Model
+          </button>
+          <button
             className="action-button danger"
             onClick={onClearAll}
             disabled={totalChips === 0 || isAnnotating || isSaving}
@@ -157,6 +165,7 @@ Sidebar.propTypes = {
   projectName: PropTypes.string,
   onBackToProjects: PropTypes.func.isRequired,
   onExport: PropTypes.func.isRequired,
+  onTrain: PropTypes.func.isRequired,
 };
 
 export default Sidebar;

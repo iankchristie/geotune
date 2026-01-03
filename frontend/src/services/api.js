@@ -113,3 +113,44 @@ export async function checkChipMaskExists(chipId) {
   });
   return response.ok;
 }
+
+// ============ Training API ============
+
+export async function getTrainingJobs(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/training`);
+  if (!response.ok) {
+    throw new Error('Failed to load training jobs');
+  }
+  return response.json();
+}
+
+export async function startTraining(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/training`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to start training');
+  }
+  return response.json();
+}
+
+export async function getTrainingJob(projectId, jobId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/training/${jobId}`);
+  if (!response.ok) {
+    throw new Error('Failed to get training job');
+  }
+  return response.json();
+}
+
+export async function cancelTraining(projectId, jobId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/training/${jobId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to cancel training');
+  }
+  return response.json();
+}

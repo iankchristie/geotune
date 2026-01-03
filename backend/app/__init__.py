@@ -19,9 +19,11 @@ def create_app():
     from app.routes import register_blueprints
     register_blueprints(app)
 
-    # Start export worker (only in main process, not reloader)
+    # Start background workers (only in main process, not reloader)
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
         from app.workers.export_worker import start_export_worker
+        from app.workers.training_worker import start_training_worker
         start_export_worker(app)
+        start_training_worker(app)
 
     return app

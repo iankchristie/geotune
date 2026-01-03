@@ -94,6 +94,26 @@ def init_db():
             FOREIGN KEY (chip_id) REFERENCES chips(id) ON DELETE CASCADE
         );
 
+        -- Training jobs table (tracks ML training runs)
+        CREATE TABLE IF NOT EXISTS training_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+            config_json TEXT NOT NULL,
+            started_at TEXT,
+            completed_at TEXT,
+            current_epoch INTEGER DEFAULT 0,
+            total_epochs INTEGER NOT NULL,
+            train_loss REAL,
+            val_loss REAL,
+            val_iou REAL,
+            checkpoint_path TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
         -- Indexes for efficient lookups
         CREATE INDEX IF NOT EXISTS idx_chips_project_id ON chips(project_id);
         CREATE INDEX IF NOT EXISTS idx_polygons_chip_id ON polygons(chip_id);
@@ -101,6 +121,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_export_jobs_status ON export_jobs(status);
         CREATE INDEX IF NOT EXISTS idx_chip_exports_job_id ON chip_exports(job_id);
         CREATE INDEX IF NOT EXISTS idx_chip_exports_chip_id ON chip_exports(chip_id);
+        CREATE INDEX IF NOT EXISTS idx_training_jobs_project_id ON training_jobs(project_id);
+        CREATE INDEX IF NOT EXISTS idx_training_jobs_status ON training_jobs(status);
     ''')
 
     db.commit()

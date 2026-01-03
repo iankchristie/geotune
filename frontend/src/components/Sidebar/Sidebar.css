@@ -205,6 +205,15 @@
   background-color: #047857;
 }
 
+.action-button.train {
+  background-color: #7c3aed;
+  color: #ffffff;
+}
+
+.action-button.train:hover:not(:disabled) {
+  background-color: #6d28d9;
+}
+
 .action-buttons {
   display: flex;
   flex-direction: column;
