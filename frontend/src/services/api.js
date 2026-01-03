@@ -154,3 +154,68 @@ export async function cancelTraining(projectId, jobId) {
   }
   return response.json();
 }
+
+// ============ Inference API ============
+
+export async function checkHasTrainedModel(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/has-trained-model`);
+  if (!response.ok) {
+    throw new Error('Failed to check for trained model');
+  }
+  return response.json();
+}
+
+export async function getInferenceJobs(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/inference`);
+  if (!response.ok) {
+    throw new Error('Failed to load inference jobs');
+  }
+  return response.json();
+}
+
+export async function startInference(projectId, bounds) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/inference`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bounds }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to start inference');
+  }
+  return response.json();
+}
+
+export async function getInferenceJob(projectId, jobId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/inference/${jobId}`);
+  if (!response.ok) {
+    throw new Error('Failed to get inference job');
+  }
+  return response.json();
+}
+
+export async function cancelInference(projectId, jobId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/inference/${jobId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to cancel inference');
+  }
+  return response.json();
+}
+
+export function getInferenceOverlayUrl(projectId, jobId) {
+  return `${API_BASE_URL}/projects/${projectId}/inference/${jobId}/overlay`;
+}
+
+export async function getLatestInference(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/inference/latest`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+    throw new Error('Failed to get latest inference');
+  }
+  return response.json();
+}

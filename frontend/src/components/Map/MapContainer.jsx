@@ -29,6 +29,9 @@ const SAVED_POLYGONS_LAYER = 'saved-polygons-layer';
 const SAVED_POLYGONS_OUTLINE = 'saved-polygons-outline';
 const SELECTED_CHIP_LAYER = 'selected-chip-layer';
 const SELECTED_CHIP_OUTLINE = 'selected-chip-outline';
+const INFERENCE_BOUNDS_LAYER = 'inference-bounds-layer';
+const INFERENCE_BOUNDS_OUTLINE = 'inference-bounds-outline';
+const INFERENCE_OVERLAY_LAYER = 'inference-overlay-layer';
 
 // Source IDs
 const POSITIVE_CHIPS_SOURCE = 'positive-chips-source';
@@ -38,6 +41,8 @@ const ACTIVE_CHIP_SOURCE = 'active-chip-source';
 const PENDING_POLYGONS_SOURCE = 'pending-polygons-source';
 const SAVED_POLYGONS_SOURCE = 'saved-polygons-source';
 const SELECTED_CHIP_SOURCE = 'selected-chip-source';
+const INFERENCE_BOUNDS_SOURCE = 'inference-bounds-source';
+const INFERENCE_OVERLAY_SOURCE = 'inference-overlay-source';
 
 function MapContainer({
   labelType,
@@ -51,11 +56,20 @@ function MapContainer({
   onNegativeChipPlace,
   onChipSelect,
   selectedChipId,
+  isDrawingBounds,
+  onBoundsDrawn,
+  onCancelBoundsDrawing,
+  inferenceOverlay,
+  showInferenceOverlay,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const drawRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Bounding box drawing state
+  const [boundsStart, setBoundsStart] = useState(null);
+  const [currentBounds, setCurrentBounds] = useState(null);
 
   // Initialize map
   useEffect(() => {
@@ -115,6 +129,17 @@ function MapContainer({
       map.addSource(SELECTED_CHIP_SOURCE, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.addSource(INFERENCE_BOUNDS_SOURCE, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.addSource(INFERENCE_OVERLAY_SOURCE, {
+        type: 'image',
+        url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        coordinates: [[0, 0], [1, 0], [1, 1], [0, 1]],
       });
 
       // Preview chip outline (dashed, color changes based on label type)
@@ -252,6 +277,38 @@ function MapContainer({
         paint: {
           'line-color': '#60a5fa',
           'line-width': 4,
+        },
+      });
+
+      // Inference bounding box (amber/orange for drawing)
+      map.addLayer({
+        id: INFERENCE_BOUNDS_LAYER,
+        type: 'fill',
+        source: INFERENCE_BOUNDS_SOURCE,
+        paint: {
+          'fill-color': '#f59e0b',
+          'fill-opacity': 0.2,
+        },
+      });
+
+      map.addLayer({
+        id: INFERENCE_BOUNDS_OUTLINE,
+        type: 'line',
+        source: INFERENCE_BOUNDS_SOURCE,
+        paint: {
+          'line-color': '#d97706',
+          'line-width': 3,
+          'line-dasharray': [4, 2],
+        },
+      });
+
+      // Inference overlay (probability heatmap)
+      map.addLayer({
+        id: INFERENCE_OVERLAY_LAYER,
+        type: 'raster',
+        source: INFERENCE_OVERLAY_SOURCE,
+        paint: {
+          'raster-opacity': 0.6,
         },
       });
     });
@@ -565,6 +622,142 @@ function MapContainer({
     }
   }, [selectedChipId, chips, mapLoaded]);
 
+  // Handle ESC key to cancel bounding box drawing
+  useEffect(() => {
+    if (!isDrawingBounds) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setBoundsStart(null);
+        setCurrentBounds(null);
+        onCancelBoundsDrawing();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDrawingBounds, onCancelBoundsDrawing]);
+
+  // Handle bounding box drawing mouse events
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    if (!isDrawingBounds) {
+      // Clear any bounds drawing state when not in drawing mode
+      setBoundsStart(null);
+      setCurrentBounds(null);
+      const boundsSource = map.getSource(INFERENCE_BOUNDS_SOURCE);
+      if (boundsSource) {
+        boundsSource.setData({ type: 'FeatureCollection', features: [] });
+      }
+      return;
+    }
+
+    // Set cursor for drawing mode
+    map.getCanvas().style.cursor = 'crosshair';
+
+    const handleMouseDown = (e) => {
+      if (!isDrawingBounds) return;
+      const { lng, lat } = e.lngLat;
+      setBoundsStart({ lng, lat });
+    };
+
+    const handleMouseMove = (e) => {
+      if (!boundsStart) return;
+      const { lng, lat } = e.lngLat;
+
+      const west = Math.min(boundsStart.lng, lng);
+      const east = Math.max(boundsStart.lng, lng);
+      const south = Math.min(boundsStart.lat, lat);
+      const north = Math.max(boundsStart.lat, lat);
+
+      const bounds = { west, south, east, north };
+      setCurrentBounds(bounds);
+
+      // Update the visual preview
+      const boundsSource = map.getSource(INFERENCE_BOUNDS_SOURCE);
+      if (boundsSource) {
+        boundsSource.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'Polygon',
+              coordinates: [[
+                [west, south],
+                [east, south],
+                [east, north],
+                [west, north],
+                [west, south],
+              ]],
+            },
+          }],
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (!boundsStart || !currentBounds) return;
+
+      // Check if bounds are valid (not just a click)
+      const minSize = 0.001; // ~100m at equator
+      if (
+        Math.abs(currentBounds.east - currentBounds.west) > minSize &&
+        Math.abs(currentBounds.north - currentBounds.south) > minSize
+      ) {
+        onBoundsDrawn(currentBounds);
+      }
+
+      setBoundsStart(null);
+      setCurrentBounds(null);
+    };
+
+    map.on('mousedown', handleMouseDown);
+    map.on('mousemove', handleMouseMove);
+    map.on('mouseup', handleMouseUp);
+
+    return () => {
+      map.off('mousedown', handleMouseDown);
+      map.off('mousemove', handleMouseMove);
+      map.off('mouseup', handleMouseUp);
+      map.getCanvas().style.cursor = labelType === LABEL_TYPES.SELECT ? 'default' : 'crosshair';
+    };
+  }, [isDrawingBounds, boundsStart, currentBounds, mapLoaded, onBoundsDrawn, labelType]);
+
+  // Update inference overlay display
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapLoaded) return;
+
+    if (showInferenceOverlay && inferenceOverlay) {
+      const { url, bounds } = inferenceOverlay;
+
+      // Update the image source
+      const source = map.getSource(INFERENCE_OVERLAY_SOURCE);
+      if (source) {
+        source.updateImage({
+          url,
+          coordinates: [
+            [bounds.west, bounds.north],
+            [bounds.east, bounds.north],
+            [bounds.east, bounds.south],
+            [bounds.west, bounds.south],
+          ],
+        });
+      }
+
+      // Show the layer
+      map.setLayoutProperty(INFERENCE_OVERLAY_LAYER, 'visibility', 'visible');
+    } else {
+      // Hide the layer
+      if (map.getLayer(INFERENCE_OVERLAY_LAYER)) {
+        map.setLayoutProperty(INFERENCE_OVERLAY_LAYER, 'visibility', 'none');
+      }
+    }
+  }, [showInferenceOverlay, inferenceOverlay, mapLoaded]);
+
   return <div ref={mapContainerRef} className="map-container" />;
 }
 
@@ -580,6 +773,19 @@ MapContainer.propTypes = {
   onNegativeChipPlace: PropTypes.func.isRequired,
   onChipSelect: PropTypes.func.isRequired,
   selectedChipId: PropTypes.string,
+  isDrawingBounds: PropTypes.bool,
+  onBoundsDrawn: PropTypes.func,
+  onCancelBoundsDrawing: PropTypes.func,
+  inferenceOverlay: PropTypes.shape({
+    url: PropTypes.string.isRequired,
+    bounds: PropTypes.shape({
+      west: PropTypes.number.isRequired,
+      south: PropTypes.number.isRequired,
+      east: PropTypes.number.isRequired,
+      north: PropTypes.number.isRequired,
+    }).isRequired,
+  }),
+  showInferenceOverlay: PropTypes.bool,
 };
 
 export default MapContainer;

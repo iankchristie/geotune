@@ -23,7 +23,9 @@ def create_app():
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
         from app.workers.export_worker import start_export_worker
         from app.workers.training_worker import start_training_worker
+        from app.workers.inference_worker import start_inference_worker
         start_export_worker(app)
         start_training_worker(app)
+        start_inference_worker(app)
 
     return app

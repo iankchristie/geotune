@@ -7,8 +7,17 @@ import MapBlade from '../MapBlade/MapBlade';
 import ChipDetails from '../MapBlade/ChipDetails';
 import ExportDetails from '../MapBlade/ExportDetails';
 import TrainingDetails from '../MapBlade/TrainingDetails';
+import InferenceDetails from '../MapBlade/InferenceDetails';
 import useLabels from '../../hooks/useLabels';
-import { getProject, loadLabels, saveLabels, clearLabels } from '../../services/api';
+import {
+  getProject,
+  loadLabels,
+  saveLabels,
+  clearLabels,
+  checkHasTrainedModel,
+  startInference,
+  getInferenceOverlayUrl,
+} from '../../services/api';
 import './LabelingPage.css';
 
 // Label types
@@ -31,7 +40,15 @@ function LabelingPage() {
   const [selectedChipId, setSelectedChipId] = useState(null);
   const [showExport, setShowExport] = useState(false);
   const [showTraining, setShowTraining] = useState(false);
+  const [showInference, setShowInference] = useState(false);
   const [cameFromExport, setCameFromExport] = useState(false);
+
+  // Inference state
+  const [hasTrainedModel, setHasTrainedModel] = useState(false);
+  const [isDrawingBounds, setIsDrawingBounds] = useState(false);
+  const [activeInferenceJobId, setActiveInferenceJobId] = useState(null);
+  const [inferenceOverlay, setInferenceOverlay] = useState(null);
+  const [showInferenceOverlay, setShowInferenceOverlay] = useState(false);
 
   const {
     polygons,
@@ -72,6 +89,23 @@ function LabelingPage() {
 
     loadProject();
   }, [projectId, setInitialState]);
+
+  // Check for trained model on mount and after training
+  useEffect(() => {
+    async function checkModel() {
+      try {
+        const result = await checkHasTrainedModel(parseInt(projectId, 10));
+        setHasTrainedModel(result.has_model);
+      } catch (error) {
+        console.error('Failed to check for trained model:', error);
+        setHasTrainedModel(false);
+      }
+    }
+
+    if (!isLoading) {
+      checkModel();
+    }
+  }, [projectId, isLoading, showTraining]);
 
   const handleBackToProjects = useCallback(() => {
     navigate('/');
@@ -134,6 +168,7 @@ function LabelingPage() {
     setSelectedChipId(null);
     setShowExport(false);
     setShowTraining(false);
+    setShowInference(false);
     setCameFromExport(false);
   }, []);
 
@@ -148,13 +183,60 @@ function LabelingPage() {
     setSelectedChipId(null);
     setShowExport(true);
     setShowTraining(false);
+    setShowInference(false);
   }, []);
 
   const handleOpenTraining = useCallback(() => {
     setSelectedChipId(null);
     setShowExport(false);
     setShowTraining(true);
+    setShowInference(false);
   }, []);
+
+  // Inference handlers
+  const handleStartInfer = useCallback(() => {
+    if (!hasTrainedModel) return;
+
+    // If inference is running, show the results blade instead
+    if (activeInferenceJobId) {
+      setSelectedChipId(null);
+      setShowExport(false);
+      setShowTraining(false);
+      setShowInference(true);
+      return;
+    }
+
+    setIsDrawingBounds(true);
+  }, [hasTrainedModel, activeInferenceJobId]);
+
+  const handleBoundsDrawn = useCallback(async (bounds) => {
+    setIsDrawingBounds(false);
+
+    try {
+      const job = await startInference(parseInt(projectId, 10), bounds);
+      setActiveInferenceJobId(job.id);
+      setShowInference(true);
+    } catch (error) {
+      console.error('Failed to start inference:', error);
+      alert(`Failed to start inference: ${error.message}`);
+    }
+  }, [projectId]);
+
+  const handleCancelBoundsDrawing = useCallback(() => {
+    setIsDrawingBounds(false);
+  }, []);
+
+  const handleShowOverlay = useCallback((job) => {
+    if (job) {
+      setInferenceOverlay({
+        url: getInferenceOverlayUrl(parseInt(projectId, 10), job.id),
+        bounds: job.bounds,
+      });
+      setShowInferenceOverlay(true);
+    } else {
+      setShowInferenceOverlay(false);
+    }
+  }, [projectId]);
 
   const handleDeleteSelectedChip = useCallback(() => {
     if (selectedChipId) {
@@ -221,6 +303,9 @@ function LabelingPage() {
   const positiveChipCount = chips.filter((c) => c.type === 'positive').length;
   const negativeChipCount = chips.filter((c) => c.type === 'negative').length;
 
+  // Check if inference is running (for disabling buttons)
+  const isInferenceRunning = activeInferenceJobId !== null;
+
   if (loadError) {
     return (
       <div className="labeling-page">
@@ -263,6 +348,10 @@ function LabelingPage() {
           onBackToProjects={handleBackToProjects}
           onExport={handleOpenExport}
           onTrain={handleOpenTraining}
+          onInfer={handleStartInfer}
+          hasTrainedModel={hasTrainedModel}
+          isInferenceRunning={isInferenceRunning}
+          isDrawingBounds={isDrawingBounds}
         />
       )}
       <MapContainer
@@ -277,6 +366,11 @@ function LabelingPage() {
         onNegativeChipPlace={addNegativeChip}
         onChipSelect={handleChipSelect}
         selectedChipId={selectedChipId}
+        isDrawingBounds={isDrawingBounds}
+        onBoundsDrawn={handleBoundsDrawn}
+        onCancelBoundsDrawing={handleCancelBoundsDrawing}
+        inferenceOverlay={inferenceOverlay}
+        showInferenceOverlay={showInferenceOverlay}
       />
       {showExport && (
         <MapBlade
@@ -296,7 +390,21 @@ function LabelingPage() {
           <TrainingDetails projectId={parseInt(projectId, 10)} />
         </MapBlade>
       )}
-      {!showExport && !showTraining && selectedChip && (
+      {showInference && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          title="Inference Results"
+        >
+          <InferenceDetails
+            projectId={parseInt(projectId, 10)}
+            activeJobId={activeInferenceJobId}
+            onShowOverlay={handleShowOverlay}
+            showingOverlay={showInferenceOverlay}
+          />
+        </MapBlade>
+      )}
+      {!showExport && !showTraining && !showInference && selectedChip && (
         <MapBlade
           isOpen={true}
           onClose={handleCloseBlade}

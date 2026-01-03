@@ -20,6 +20,10 @@ function Sidebar({
   onBackToProjects,
   onExport,
   onTrain,
+  onInfer,
+  hasTrainedModel,
+  isInferenceRunning,
+  isDrawingBounds,
 }) {
   const totalChips = positiveChipCount + negativeChipCount;
 
@@ -129,6 +133,14 @@ function Sidebar({
             Train Model
           </button>
           <button
+            className={`action-button infer ${isDrawingBounds ? 'active' : ''}`}
+            onClick={onInfer}
+            disabled={!hasTrainedModel || isAnnotating || isSaving || isInferenceRunning}
+            title={!hasTrainedModel ? 'Train a model first' : ''}
+          >
+            {isDrawingBounds ? 'Drawing Region...' : isInferenceRunning ? 'Inference Running...' : 'Infer on Region'}
+          </button>
+          <button
             className="action-button danger"
             onClick={onClearAll}
             disabled={totalChips === 0 || isAnnotating || isSaving}
@@ -166,6 +178,10 @@ Sidebar.propTypes = {
   onBackToProjects: PropTypes.func.isRequired,
   onExport: PropTypes.func.isRequired,
   onTrain: PropTypes.func.isRequired,
+  onInfer: PropTypes.func.isRequired,
+  hasTrainedModel: PropTypes.bool,
+  isInferenceRunning: PropTypes.bool,
+  isDrawingBounds: PropTypes.bool,
 };
 
 export default Sidebar;

@@ -214,6 +214,29 @@
   background-color: #6d28d9;
 }
 
+.action-button.infer {
+  background-color: #d97706;
+  color: #ffffff;
+}
+
+.action-button.infer:hover:not(:disabled) {
+  background-color: #b45309;
+}
+
+.action-button.infer.active {
+  background-color: #f59e0b;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .action-buttons {
   display: flex;
   flex-direction: column;

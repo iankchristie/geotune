@@ -1,0 +1,185 @@
+.inference-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inference-loading {
+  color: #9ca3af;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.inference-error {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.inference-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inference-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.inference-job-card {
+  background-color: #374151;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inference-job-card.active {
+  background-color: #1e3a5f;
+  border: 1px solid #3b82f6;
+}
+
+.inference-job-card.failed {
+  background-color: #3f1f1f;
+  border: 1px solid #7f1d1d;
+}
+
+.job-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.job-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.job-status.status-completed {
+  background-color: #166534;
+  color: #bbf7d0;
+}
+
+.job-status.status-failed {
+  background-color: #991b1b;
+  color: #fecaca;
+}
+
+.job-status.status-downloading {
+  background-color: #1d4ed8;
+  color: #bfdbfe;
+}
+
+.job-status.status-inferring {
+  background-color: #7c3aed;
+  color: #ddd6fe;
+}
+
+.job-status.status-pending {
+  background-color: #854d0e;
+  color: #fef08a;
+}
+
+.job-status.status-cancelled {
+  background-color: #4b5563;
+  color: #d1d5db;
+}
+
+.job-id {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.job-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #1f2937;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #f59e0b;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.75rem;
+  color: #d1d5db;
+  text-align: center;
+}
+
+.job-error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #fca5a5;
+  background-color: rgba(127, 29, 29, 0.3);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.job-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.overlay-toggle {
+  padding: 8px 0;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #f59e0b;
+}
+
+.toggle-text {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.inference-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inference-empty {
+  text-align: center;
+  padding: 20px 0;
+  color: #9ca3af;
+}
+
+.inference-empty p {
+  margin: 0 0 8px 0;
+}
+
+.inference-empty-hint {
+  font-size: 0.75rem;
+  color: #6b7280;
+}

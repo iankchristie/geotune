@@ -114,6 +114,24 @@ def init_db():
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         );
 
+        -- Inference jobs table (tracks inference runs on regions)
+        CREATE TABLE IF NOT EXISTS inference_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            training_job_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'downloading', 'inferring', 'completed', 'failed', 'cancelled')),
+            bounds_geojson TEXT NOT NULL,
+            progress REAL DEFAULT 0,
+            progress_message TEXT,
+            output_path TEXT,
+            error_message TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (training_job_id) REFERENCES training_jobs(id) ON DELETE SET NULL
+        );
+
         -- Indexes for efficient lookups
         CREATE INDEX IF NOT EXISTS idx_chips_project_id ON chips(project_id);
         CREATE INDEX IF NOT EXISTS idx_polygons_chip_id ON polygons(chip_id);
@@ -123,6 +141,8 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_chip_exports_chip_id ON chip_exports(chip_id);
         CREATE INDEX IF NOT EXISTS idx_training_jobs_project_id ON training_jobs(project_id);
         CREATE INDEX IF NOT EXISTS idx_training_jobs_status ON training_jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_inference_jobs_project_id ON inference_jobs(project_id);
+        CREATE INDEX IF NOT EXISTS idx_inference_jobs_status ON inference_jobs(status);
     ''')
 
     db.commit()

@@ -377,14 +377,14 @@ cd frontend && npm start
 ---
 
 ## PHASE 4: Training Pipeline
-**Status: NOT STARTED**
+**Status: COMPLETE**
 
 ### Objective
 Train a semantic segmentation model on labeled chips using TorchGeo's SemanticSegmentationTask with pretrained weights. Support background training with progress tracking.
 
 ### Implementation
 
-#### Backend Files to Create
+#### Backend Files Created
 ```
 backend/app/
 ├── ml/
@@ -398,8 +398,9 @@ backend/app/
     └── training.py          # Training API endpoints
 ```
 
-#### Dependencies (add to requirements.txt)
+#### Dependencies (added to requirements.txt)
 ```
+numpy<2.0.0
 torch>=2.0.0
 torchvision>=0.15.0
 torchgeo>=0.8.0
@@ -598,26 +599,215 @@ cd frontend && npm start
 ```
 
 **Test Steps:**
-- [ ] "Train" button in sidebar starts training job
-- [ ] TrainingDetails blade opens showing status
-- [ ] Progress updates display in real-time (epoch, loss, metrics)
-- [ ] Can cancel in-progress training
-- [ ] Training completes and saves checkpoint
-- [ ] Training history shows past runs with metrics
-- [ ] Completed model ready for inference (Phase 5)
+- [x] "Train" button in sidebar starts training job
+- [x] TrainingDetails blade opens showing status
+- [x] Progress updates display in real-time (epoch, loss, metrics)
+- [x] Can cancel in-progress training
+- [x] Training completes and saves checkpoint
+- [x] Training history shows past runs with metrics
+- [x] Completed model ready for inference (Phase 5)
 
 ---
 
-## PHASE 5: Inference Pipeline (FUTURE)
-**Status: NOT STARTED**
+## PHASE 5: Inference Pipeline
+**Status: IN PROGRESS**
 
 ### Objective
-Run inference across project region and display results.
+Allow users to run inference on a user-defined region using the most recent trained model. Display results as a probability overlay on the map with a blue→red color gradient.
 
-### Key Components
-- Subregion grid generation
-- Sliding window inference
-- Probability map overlay
+### User Flow
+1. User clicks "Infer on Region" button in Sidebar
+2. App enters bounding box drawing mode (cursor changes)
+3. User draws rectangle on map to define inference region
+4. Backend downloads imagery for the region and runs inference
+5. Progress bar shows download and inference progress
+6. Results display as semi-transparent probability overlay on map
+
+### Implementation
+
+#### Backend Files Created
+```
+backend/app/
+├── services/
+│   └── inference_service.py     # Download region, run inference, create overlay
+├── workers/
+│   └── inference_worker.py      # Background inference job processor
+└── routes/
+    └── inference.py             # Inference API endpoints
+```
+
+#### Database Schema Addition
+```sql
+CREATE TABLE inference_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    training_job_id INTEGER NOT NULL,     -- Which model to use
+    status TEXT NOT NULL CHECK (status IN ('pending', 'downloading', 'inferring', 'completed', 'failed', 'cancelled')),
+    bounds_geojson TEXT NOT NULL,         -- User-drawn bounding box
+    progress REAL DEFAULT 0,              -- 0-100 percentage
+    progress_message TEXT,                -- Current step description
+    output_path TEXT,                     -- Path to probability GeoTIFF
+    error_message TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (training_job_id) REFERENCES training_jobs(id) ON DELETE SET NULL
+);
+```
+
+#### API Endpoints
+- `POST /api/projects/{id}/inference` - Start new inference job
+  - Automatically uses most recent completed training job
+  - Body: `{ bounds: { west, south, east, north } }`
+- `GET /api/projects/{id}/inference` - List inference jobs for project
+- `GET /api/projects/{id}/inference/{jobId}` - Get job status and progress
+- `DELETE /api/projects/{id}/inference/{jobId}` - Cancel inference job
+- `GET /api/projects/{id}/inference/{jobId}/overlay` - Get probability overlay PNG
+
+#### Inference Algorithm
+1. **Grid Generation**: Divide bounding box into 256x256 tiles with 50% overlap
+2. **Imagery Download**: Download each tile from GEE (same Sentinel-2 composite as training)
+3. **Model Inference**: Run each tile through trained model, get probability output
+4. **Smooth Blending**: Weight overlapping regions by distance from tile center
+5. **Output**: Single probability GeoTIFF covering entire region
+
+#### Smooth Blending Details
+- 50% overlap between tiles (128 pixel stride for 256 pixel tiles)
+- Distance-weighted blending: pixels closer to tile center have higher weight
+- Gaussian or linear falloff from center to edges
+- Overlapping probabilities are averaged with weights
+
+#### Frontend Components
+```
+frontend/src/components/
+├── Map/
+│   └── InferenceOverlay.jsx      # Renders probability overlay on map
+├── Sidebar/
+│   └── Sidebar.jsx               # Add "Infer on Region" button
+└── MapBlade/
+    └── InferenceDetails.jsx      # Progress and results display
+```
+
+#### UI Components
+1. **"Infer on Region" Button** (amber/orange color)
+   - Disabled if no completed training job exists
+   - Disabled if inference already running
+   - Enters bounding box drawing mode when clicked
+
+2. **Bounding Box Drawing Mode**
+   - Custom cursor indicating draw mode
+   - Click-drag to draw rectangle
+   - Visual preview of rectangle as user drags
+   - ESC to cancel
+
+3. **InferenceDetails Blade**
+   - Shows inference status and progress bar
+   - Progress stages: "Downloading imagery...", "Running inference..."
+   - Shows model info (training job ID, metrics)
+   - Completed: shows overlay toggle
+
+4. **Probability Overlay**
+   - Semi-transparent overlay on map
+   - Blue (0%) → Red (100%) color gradient
+   - Toggle to show/hide overlay
+   - Opacity slider (optional)
+
+#### Color Gradient
+- 0% probability: Blue (RGB: 0, 0, 255)
+- 50% probability: Purple/Magenta
+- 100% probability: Red (RGB: 255, 0, 0)
+- Transparency: 50% opacity for overlay
+
+#### Key Features
+- One inference job at a time per project
+- Automatic model selection (most recent completed training job)
+- Progress bar with descriptive status messages
+- Smooth blending for seamless probability map
+- Cached overlay images for quick map rendering
+- Cancel in-progress inference jobs
+
+#### Output Structure
+```
+backend/data/
+└── inference/{project_id}/
+    ├── {job_id}/
+    │   ├── tiles/                    # Downloaded imagery tiles
+    │   ├── predictions/              # Per-tile probability outputs
+    │   ├── probability.tif           # Merged probability GeoTIFF
+    │   └── overlay.png               # Web-ready overlay image
+    └── latest_overlay.png            # Most recent overlay for quick access
+```
+
+### Implementation Steps
+
+#### Step 5.1: Database Schema
+- [x] Add inference_jobs table to database.py
+- [x] Add INFERENCE_DIR to config.py
+
+#### Step 5.2: Inference Service
+- [x] Create inference_service.py with:
+  - Grid generation function
+  - Smooth blending function
+  - Overlay generation (GeoTIFF → PNG with colormap)
+
+#### Step 5.3: Inference Worker
+- [x] Create inference_worker.py with background job processor
+- [x] Implement progress callbacks for UI updates
+- [x] Handle imagery download from GEE
+- [x] Run model inference with PyTorch
+
+#### Step 5.4: API Routes
+- [x] Create inference.py routes
+- [x] Start inference endpoint (auto-select model)
+- [x] Progress polling endpoint
+- [x] Overlay image endpoint
+
+#### Step 5.5: Frontend - Bounding Box Drawing
+- [x] Add drawing mode state to MapContainer
+- [x] Implement rectangle drawing interaction
+- [x] Visual feedback during drawing
+- [x] ESC to cancel
+
+#### Step 5.6: Frontend - Sidebar Button
+- [x] Add "Infer on Region" button
+- [x] Disable when no model or inference running
+- [x] Enter drawing mode on click
+
+#### Step 5.7: Frontend - Inference Details
+- [x] Create InferenceDetails.jsx component
+- [x] Progress bar with status messages
+- [x] Model info display
+- [x] Overlay toggle
+
+#### Step 5.8: Frontend - Overlay Display
+- [x] Overlay integrated into MapContainer (not separate component)
+- [x] Load overlay image as map layer
+- [x] Show/hide toggle
+- [x] Proper geo-positioning
+
+### Manual Verification Checklist
+
+**Setup:**
+```bash
+# Terminal 1 - Backend
+cd backend && source venv/bin/activate && python run.py
+
+# Terminal 2 - Frontend
+cd frontend && npm start
+```
+
+**Test Steps:**
+- [ ] "Infer on Region" button visible in sidebar
+- [ ] Button disabled when no completed training job
+- [ ] Clicking button enters drawing mode
+- [ ] Can draw bounding box on map
+- [ ] ESC cancels drawing mode
+- [ ] Drawing box starts inference job
+- [ ] Progress bar shows download and inference progress
+- [ ] Inference completes and shows overlay
+- [ ] Overlay shows blue→red gradient
+- [ ] Can toggle overlay visibility
+- [ ] Only one inference at a time per project
 
 ---
 
@@ -683,3 +873,8 @@ GeoLabel/
 - `POST /api/projects/<id>/training/start` - Training
 - `POST /api/projects/<id>/inference/start` - Inference
 - `GET/POST /api/projects/<id>/verification/tiles` - Verification
+
+TODO:
+- Draw Polygons on sentinel imagery instead of high res imagery
+- Save Imediately
+- Parallelize downloading and Inference
