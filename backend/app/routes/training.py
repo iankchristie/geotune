@@ -184,3 +184,39 @@ def cancel_training(project_id, job_id):
     db.commit()
 
     return jsonify({'message': 'Training job cancelled'})
+
+
+@training_bp.route('/projects/<int:project_id>/training/latest', methods=['GET'])
+def get_latest_training(project_id):
+    """Get the most recent training job for a project (any status)."""
+    db = get_db()
+
+    job = db.execute(
+        '''SELECT id, status, config_json, started_at, completed_at,
+                  current_epoch, total_epochs, train_loss, val_loss, val_iou,
+                  checkpoint_path, error_message, created_at
+           FROM training_jobs
+           WHERE project_id = ?
+           ORDER BY created_at DESC
+           LIMIT 1''',
+        (project_id,)
+    ).fetchone()
+
+    if not job:
+        return jsonify({'error': 'No training jobs found'}), 404
+
+    return jsonify({
+        'id': job['id'],
+        'status': job['status'],
+        'config': json.loads(job['config_json']),
+        'started_at': job['started_at'],
+        'completed_at': job['completed_at'],
+        'current_epoch': job['current_epoch'],
+        'total_epochs': job['total_epochs'],
+        'train_loss': job['train_loss'],
+        'val_loss': job['val_loss'],
+        'val_iou': job['val_iou'],
+        'checkpoint_path': job['checkpoint_path'],
+        'error_message': job['error_message'],
+        'created_at': job['created_at'],
+    })

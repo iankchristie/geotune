@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MapContainer from '../Map/MapContainer';
 import Sidebar from '../Sidebar/Sidebar';
@@ -8,6 +8,8 @@ import ChipDetails from '../MapBlade/ChipDetails';
 import ExportDetails from '../MapBlade/ExportDetails';
 import TrainingDetails from '../MapBlade/TrainingDetails';
 import InferenceDetails from '../MapBlade/InferenceDetails';
+import SampleDetails from '../MapBlade/SampleDetails';
+import SelectDetails from '../MapBlade/SelectDetails';
 import useLabels from '../../hooks/useLabels';
 import {
   getProject,
@@ -17,6 +19,8 @@ import {
   checkHasTrainedModel,
   startInference,
   getInferenceOverlayUrl,
+  getLatestTraining,
+  getLatestInference,
 } from '../../services/api';
 import './LabelingPage.css';
 
@@ -41,6 +45,8 @@ function LabelingPage() {
   const [showExport, setShowExport] = useState(false);
   const [showTraining, setShowTraining] = useState(false);
   const [showInference, setShowInference] = useState(false);
+  const [showSample, setShowSample] = useState(false);
+  const [showSelect, setShowSelect] = useState(false);
   const [cameFromExport, setCameFromExport] = useState(false);
 
   // Inference state
@@ -49,6 +55,10 @@ function LabelingPage() {
   const [activeInferenceJobId, setActiveInferenceJobId] = useState(null);
   const [inferenceOverlay, setInferenceOverlay] = useState(null);
   const [showInferenceOverlay, setShowInferenceOverlay] = useState(false);
+
+  // Latest job state for sidebar info cards
+  const [latestTrainingJob, setLatestTrainingJob] = useState(null);
+  const [latestInferenceJob, setLatestInferenceJob] = useState(null);
 
   const {
     polygons,
@@ -64,8 +74,7 @@ function LabelingPage() {
   const [project, setProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null);
+  const hasInitiallyLoaded = useRef(false);
 
   // Load project and labels on mount
   useEffect(() => {
@@ -79,6 +88,11 @@ function LabelingPage() {
 
         const { chips: loadedChips, polygons: loadedPolygons } = await loadLabels(projectId);
         setInitialState(loadedChips, loadedPolygons);
+
+        // Mark initial load complete after state is set
+        setTimeout(() => {
+          hasInitiallyLoaded.current = true;
+        }, 0);
       } catch (error) {
         console.error('Failed to load project:', error);
         setLoadError('Failed to load project. It may not exist.');
@@ -89,6 +103,21 @@ function LabelingPage() {
 
     loadProject();
   }, [projectId, setInitialState]);
+
+  // Auto-save when chips or polygons change (after initial load)
+  useEffect(() => {
+    if (!hasInitiallyLoaded.current || !project) return;
+
+    const saveTimeout = setTimeout(async () => {
+      try {
+        await saveLabels(project.id, chips, polygons);
+      } catch (error) {
+        console.error('Failed to auto-save labels:', error);
+      }
+    }, 300); // Debounce saves by 300ms
+
+    return () => clearTimeout(saveTimeout);
+  }, [chips, polygons, project]);
 
   // Check for trained model on mount and after training
   useEffect(() => {
@@ -107,24 +136,43 @@ function LabelingPage() {
     }
   }, [projectId, isLoading, showTraining]);
 
+  // Load latest training job for sidebar info
+  useEffect(() => {
+    async function loadLatestTraining() {
+      try {
+        const job = await getLatestTraining(parseInt(projectId, 10));
+        setLatestTrainingJob(job);
+      } catch (error) {
+        // No training jobs yet is fine
+        setLatestTrainingJob(null);
+      }
+    }
+
+    if (!isLoading) {
+      loadLatestTraining();
+    }
+  }, [projectId, isLoading, showTraining]);
+
+  // Load latest inference job for sidebar info
+  useEffect(() => {
+    async function loadLatestInference() {
+      try {
+        const job = await getLatestInference(parseInt(projectId, 10));
+        setLatestInferenceJob(job);
+      } catch (error) {
+        // No inference jobs yet is fine
+        setLatestInferenceJob(null);
+      }
+    }
+
+    if (!isLoading) {
+      loadLatestInference();
+    }
+  }, [projectId, isLoading, showInference, activeInferenceJobId]);
+
   const handleBackToProjects = useCallback(() => {
     navigate('/');
   }, [navigate]);
-
-  const handleLabelTypeChange = useCallback(
-    (newType) => {
-      if (isAnnotating) {
-        setIsAnnotating(false);
-        setActiveChipCenter(null);
-        setPendingPolygons([]);
-      }
-      // Clear selection and close blade when changing modes
-      setSelectedChipId(null);
-      setShowExport(false);
-      setLabelType(newType);
-    },
-    [isAnnotating]
-  );
 
   const handleStartAnnotation = useCallback((center) => {
     setActiveChipCenter(center);
@@ -169,7 +217,11 @@ function LabelingPage() {
     setShowExport(false);
     setShowTraining(false);
     setShowInference(false);
+    setShowSample(false);
+    setShowSelect(false);
     setCameFromExport(false);
+    // Deactivate tile placement mode when closing any blade
+    setLabelType(LABEL_TYPES.SELECT);
   }, []);
 
   const handleBackToExport = useCallback(() => {
@@ -184,6 +236,9 @@ function LabelingPage() {
     setShowExport(true);
     setShowTraining(false);
     setShowInference(false);
+    setShowSample(false);
+    setShowSelect(false);
+    setLabelType(LABEL_TYPES.SELECT);
   }, []);
 
   const handleOpenTraining = useCallback(() => {
@@ -191,23 +246,55 @@ function LabelingPage() {
     setShowExport(false);
     setShowTraining(true);
     setShowInference(false);
+    setShowSample(false);
+    setShowSelect(false);
+    setLabelType(LABEL_TYPES.SELECT);
+  }, []);
+
+  const handleShowInference = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(false);
+    setShowTraining(false);
+    setShowInference(true);
+    setShowSample(false);
+    setShowSelect(false);
+    setLabelType(LABEL_TYPES.SELECT);
+  }, []);
+
+  const handleOpenSample = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(false);
+    setShowTraining(false);
+    setShowInference(false);
+    setShowSample(true);
+    setShowSelect(false);
+    setLabelType(LABEL_TYPES.SELECT);
+  }, []);
+
+  const handleOpenSelect = useCallback(() => {
+    setSelectedChipId(null);
+    setShowExport(false);
+    setShowTraining(false);
+    setShowInference(false);
+    setShowSample(false);
+    setShowSelect(true);
+    setLabelType(LABEL_TYPES.SELECT);
+  }, []);
+
+  const handleSelectPositive = useCallback(() => {
+    setLabelType(LABEL_TYPES.POSITIVE);
+    // Keep blade open
+  }, []);
+
+  const handleSelectNegative = useCallback(() => {
+    setLabelType(LABEL_TYPES.NEGATIVE);
+    // Keep blade open
   }, []);
 
   // Inference handlers
-  const handleStartInfer = useCallback(() => {
-    if (!hasTrainedModel) return;
-
-    // If inference is running, show the results blade instead
-    if (activeInferenceJobId) {
-      setSelectedChipId(null);
-      setShowExport(false);
-      setShowTraining(false);
-      setShowInference(true);
-      return;
-    }
-
+  const handleStartDrawing = useCallback(() => {
     setIsDrawingBounds(true);
-  }, [hasTrainedModel, activeInferenceJobId]);
+  }, []);
 
   const handleBoundsDrawn = useCallback(async (bounds) => {
     setIsDrawingBounds(false);
@@ -215,6 +302,12 @@ function LabelingPage() {
     try {
       const job = await startInference(parseInt(projectId, 10), bounds);
       setActiveInferenceJobId(job.id);
+      // Close any other open blades before showing inference
+      setSelectedChipId(null);
+      setShowExport(false);
+      setShowTraining(false);
+      setShowSample(false);
+      setLabelType(LABEL_TYPES.SELECT);
       setShowInference(true);
     } catch (error) {
       console.error('Failed to start inference:', error);
@@ -268,23 +361,6 @@ function LabelingPage() {
     return polygons.filter((p) => p.chipId === selectedChipId).length;
   }, [selectedChipId, polygons]);
 
-  const handleSave = useCallback(async () => {
-    if (!project) return;
-
-    try {
-      setIsSaving(true);
-      setSaveStatus(null);
-      await saveLabels(project.id, chips, polygons);
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (error) {
-      console.error('Failed to save labels:', error);
-      setSaveStatus('error');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [project, chips, polygons]);
-
   const handleClearAll = useCallback(async () => {
     if (!project) {
       clearAll();
@@ -302,9 +378,6 @@ function LabelingPage() {
 
   const positiveChipCount = chips.filter((c) => c.type === 'positive').length;
   const negativeChipCount = chips.filter((c) => c.type === 'negative').length;
-
-  // Check if inference is running (for disabling buttons)
-  const isInferenceRunning = activeInferenceJobId !== null;
 
   if (loadError) {
     return (
@@ -332,26 +405,22 @@ function LabelingPage() {
       ) : (
         <Sidebar
           labelType={labelType}
-          onLabelTypeChange={handleLabelTypeChange}
           isAnnotating={isAnnotating}
-          pendingPolygonCount={pendingPolygons.length}
-          onFinishAnnotation={handleFinishAnnotation}
-          onCancelAnnotation={handleCancelAnnotation}
           polygonCount={polygons.length}
           positiveChipCount={positiveChipCount}
           negativeChipCount={negativeChipCount}
           onClearAll={handleClearAll}
-          onSave={handleSave}
-          isSaving={isSaving}
-          saveStatus={saveStatus}
           projectName={project?.name}
           onBackToProjects={handleBackToProjects}
           onExport={handleOpenExport}
           onTrain={handleOpenTraining}
-          onInfer={handleStartInfer}
-          hasTrainedModel={hasTrainedModel}
-          isInferenceRunning={isInferenceRunning}
-          isDrawingBounds={isDrawingBounds}
+          onInfer={handleShowInference}
+          onSample={handleOpenSample}
+          onSelect={handleOpenSelect}
+          latestTrainingJob={latestTrainingJob}
+          latestInferenceJob={latestInferenceJob}
+          onShowTraining={handleOpenTraining}
+          onShowInference={handleShowInference}
         />
       )}
       <MapContainer
@@ -401,10 +470,39 @@ function LabelingPage() {
             activeJobId={activeInferenceJobId}
             onShowOverlay={handleShowOverlay}
             showingOverlay={showInferenceOverlay}
+            hasTrainedModel={hasTrainedModel}
+            isDrawingBounds={isDrawingBounds}
+            onStartDrawing={handleStartDrawing}
           />
         </MapBlade>
       )}
-      {!showExport && !showTraining && !showInference && selectedChip && (
+      {showSample && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          title="Sample"
+        >
+          <SampleDetails
+            labelType={labelType}
+            onSelectPositive={handleSelectPositive}
+            onSelectNegative={handleSelectNegative}
+            isAnnotating={isAnnotating}
+            pendingPolygonCount={pendingPolygons.length}
+            onFinishAnnotation={handleFinishAnnotation}
+            onCancelAnnotation={handleCancelAnnotation}
+          />
+        </MapBlade>
+      )}
+      {showSelect && (
+        <MapBlade
+          isOpen={true}
+          onClose={handleCloseBlade}
+          title="Select"
+        >
+          <SelectDetails />
+        </MapBlade>
+      )}
+      {!showExport && !showTraining && !showInference && !showSample && !showSelect && selectedChip && (
         <MapBlade
           isOpen={true}
           onClose={handleCloseBlade}

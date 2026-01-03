@@ -155,6 +155,17 @@ export async function cancelTraining(projectId, jobId) {
   return response.json();
 }
 
+export async function getLatestTraining(projectId) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/training/latest`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+    throw new Error('Failed to get latest training');
+  }
+  return response.json();
+}
+
 // ============ Inference API ============
 
 export async function checkHasTrainedModel(projectId) {

@@ -228,6 +228,32 @@
   animation: pulse 1.5s infinite;
 }
 
+.action-button.select {
+  background-color: #4b5563;
+  color: #ffffff;
+}
+
+.action-button.select:hover:not(:disabled) {
+  background-color: #6b7280;
+}
+
+.action-button.select.active {
+  background-color: #3b82f6;
+}
+
+.action-button.sample {
+  background-color: #4b5563;
+  color: #ffffff;
+}
+
+.action-button.sample:hover:not(:disabled) {
+  background-color: #6b7280;
+}
+
+.action-button.sample.active {
+  background-color: #16a34a;
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -288,3 +314,20 @@
   color: #fecaca;
 }
 
+/* Info cards container */
+.info-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Muted text for empty states */
+.info-muted {
+  color: #6b7280;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid #374151;
+}

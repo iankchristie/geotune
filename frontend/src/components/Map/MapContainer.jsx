@@ -478,6 +478,19 @@ function MapContainer({
     map.setPaintProperty(PREVIEW_CHIP_LAYER, 'line-color', color);
   }, [labelType]);
 
+  // Clear preview chip immediately when switching to SELECT mode or annotating
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (isAnnotating || labelType === LABEL_TYPES.SELECT) {
+      const previewSource = map.getSource(PREVIEW_CHIP_SOURCE);
+      if (previewSource) {
+        previewSource.setData({ type: 'FeatureCollection', features: [] });
+      }
+    }
+  }, [isAnnotating, labelType]);
+
   // Show preview chip on hover (snapped to grid) - only in POSITIVE/NEGATIVE modes
   useEffect(() => {
     const map = mapRef.current;

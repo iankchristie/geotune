@@ -1,0 +1,124 @@
+.info-card {
+  background-color: #374151;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.info-card.clickable {
+  cursor: pointer;
+}
+
+.info-card.clickable:hover {
+  background-color: #4b5563;
+}
+
+.info-card-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+}
+
+.info-card-content {
+  font-size: 0.875rem;
+  color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Status variants */
+.info-card.status-training {
+  background-color: #4c1d95;
+  border-left: 3px solid #7c3aed;
+}
+
+.info-card.status-training .info-card-title {
+  color: #c4b5fd;
+}
+
+.info-card.status-inferring {
+  background-color: #78350f;
+  border-left: 3px solid #f59e0b;
+}
+
+.info-card.status-inferring .info-card-title {
+  color: #fcd34d;
+}
+
+.info-card.status-completed {
+  background-color: #14532d;
+  border-left: 3px solid #22c55e;
+}
+
+.info-card.status-completed .info-card-title {
+  color: #86efac;
+}
+
+.info-card.status-failed {
+  background-color: #7f1d1d;
+  border-left: 3px solid #ef4444;
+}
+
+.info-card.status-failed .info-card-title {
+  color: #fca5a5;
+}
+
+/* Label stats styling */
+.label-stat {
+  color: #e5e7eb;
+}
+
+.label-stat.positive {
+  color: #4ade80;
+}
+
+.label-stat.negative {
+  color: #f87171;
+}
+
+.label-stat.separator {
+  color: #6b7280;
+}
+
+/* Progress indicator */
+.info-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.info-card-progress-bar {
+  flex: 1;
+  height: 4px;
+  background-color: #1f2937;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.info-card-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.info-card.status-training .info-card-progress-fill {
+  background-color: #7c3aed;
+}
+
+.info-card.status-inferring .info-card-progress-fill {
+  background-color: #f59e0b;
+}
+
+.info-card-progress-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}

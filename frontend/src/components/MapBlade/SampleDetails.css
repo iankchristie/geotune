@@ -1,0 +1,181 @@
+.sample-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sample-description {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sample-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sample-type-button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid #4b5563;
+  border-radius: 8px;
+  background-color: #374151;
+  color: #e5e7eb;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  position: relative;
+}
+
+.sample-type-button:hover {
+  background-color: #4b5563;
+}
+
+.sample-type-button.positive:hover {
+  border-color: #22c55e;
+  background-color: #14532d;
+}
+
+.sample-type-button.negative:hover {
+  border-color: #ef4444;
+  background-color: #7f1d1d;
+}
+
+.sample-type-button.positive.active {
+  border-color: #22c55e;
+  background-color: #14532d;
+}
+
+.sample-type-button.negative.active {
+  border-color: #ef4444;
+  background-color: #7f1d1d;
+}
+
+.sample-indicator {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.sample-indicator.positive {
+  background-color: #22c55e;
+}
+
+.sample-indicator.negative {
+  background-color: #ef4444;
+}
+
+.sample-button-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sample-button-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.sample-button-desc {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.sample-active-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.sample-hint {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+  padding: 12px;
+  background-color: #1f2937;
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
+}
+
+/* Annotation Section */
+.annotation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.annotation-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.annotation-description {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.annotation-stats {
+  font-size: 0.875rem;
+  color: #93c5fd;
+  padding: 12px;
+  background-color: #1e40af;
+  border-radius: 6px;
+}
+
+.annotation-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.annotation-button {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.annotation-button.primary {
+  background-color: #16a34a;
+  color: #ffffff;
+}
+
+.annotation-button.primary:hover:not(:disabled) {
+  background-color: #15803d;
+}
+
+.annotation-button.primary:disabled {
+  background-color: #4b5563;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.annotation-button.secondary {
+  background-color: #4b5563;
+  color: #ffffff;
+}
+
+.annotation-button.secondary:hover {
+  background-color: #6b7280;
+}

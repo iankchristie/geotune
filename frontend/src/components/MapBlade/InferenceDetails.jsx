@@ -3,7 +3,15 @@ import PropTypes from 'prop-types';
 import { getInferenceJobs, getInferenceJob } from '../../services/api';
 import './InferenceDetails.css';
 
-function InferenceDetails({ projectId, activeJobId, onShowOverlay, showingOverlay }) {
+function InferenceDetails({
+  projectId,
+  activeJobId,
+  onShowOverlay,
+  showingOverlay,
+  hasTrainedModel,
+  isDrawingBounds,
+  onStartDrawing,
+}) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,6 +98,7 @@ function InferenceDetails({ projectId, activeJobId, onShowOverlay, showingOverla
   );
   const completedJobs = jobs.filter((j) => j.status === 'completed');
   const failedJobs = jobs.filter((j) => j.status === 'failed');
+  const isInferenceRunning = !!activeJob;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
@@ -137,6 +146,23 @@ function InferenceDetails({ projectId, activeJobId, onShowOverlay, showingOverla
   return (
     <div className="inference-details">
       {error && <div className="inference-error">{error}</div>}
+
+      {/* Draw Region Button */}
+      <div className="inference-action">
+        {!hasTrainedModel ? (
+          <p className="inference-hint">Train a model first to run inference.</p>
+        ) : isDrawingBounds ? (
+          <p className="inference-hint drawing">Draw a bounding box on the map to define the inference region.</p>
+        ) : (
+          <button
+            className="draw-region-button"
+            onClick={onStartDrawing}
+            disabled={isInferenceRunning}
+          >
+            {isInferenceRunning ? 'Inference Running...' : 'Draw Region'}
+          </button>
+        )}
+      </div>
 
       {/* Active Job Progress */}
       {activeJob && (
@@ -228,7 +254,7 @@ function InferenceDetails({ projectId, activeJobId, onShowOverlay, showingOverla
         <div className="inference-empty">
           <p>No inference jobs yet.</p>
           <p className="inference-empty-hint">
-            Click &quot;Infer on Region&quot; and draw a bounding box to run inference.
+            Draw a region on the map to run inference.
           </p>
         </div>
       )}
@@ -241,6 +267,9 @@ InferenceDetails.propTypes = {
   activeJobId: PropTypes.number,
   onShowOverlay: PropTypes.func.isRequired,
   showingOverlay: PropTypes.bool,
+  hasTrainedModel: PropTypes.bool,
+  isDrawingBounds: PropTypes.bool,
+  onStartDrawing: PropTypes.func,
 };
 
 export default InferenceDetails;
